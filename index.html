@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Last Light — Playtest</title>
+<style>
+  :root{
+    --void:#0a0908; --panel:#141210; --panel2:#1c1815; --line:#3a322a;
+    --ash:#8c8377; --bone:#d8d0c0; --ember:#e2a33d; --ember-dim:#8a5f22;
+    --blood:#9c3b3b; --good:#7a9c6a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; background:var(--void); color:var(--bone);
+    font-family:'Courier New', ui-monospace, monospace;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .wrap{max-width:520px; width:100%}
+  .card{
+    border:1px solid var(--line); background:var(--panel);
+    padding:24px 20px; text-align:center;
+  }
+  h1{
+    margin:0 0 4px 0; font-size:22px; letter-spacing:1px;
+    color:var(--ember);
+  }
+  .sub{color:var(--ash); font-size:13px; margin-bottom:20px}
+  p{line-height:1.6; font-size:14px; color:var(--bone)}
+  .version{
+    display:inline-block; margin:14px 0 20px 0;
+    color:var(--ash); font-size:11px; letter-spacing:1px;
+    border:1px solid var(--line); padding:4px 10px;
+  }
+  a.play{
+    display:block; text-decoration:none;
+    background:#2a2010; border:1px solid var(--ember-dim); color:var(--ember);
+    padding:14px; font-size:16px; letter-spacing:1px; font-weight:bold;
+    margin-bottom:14px; transition:border-color 0.15s, color 0.15s;
+  }
+  a.play:hover{border-color:var(--ember); color:#f0c060}
+  a.changelog{
+    display:inline-block; color:var(--ash); font-size:12px;
+    text-decoration:underline; text-decoration-color:var(--line);
+  }
+  a.changelog:hover{color:var(--bone)}
+  .note{
+    margin-top:20px; padding-top:16px; border-top:1px solid var(--line);
+    font-size:12px; color:var(--ash); text-align:left; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>✦ LAST LIGHT</h1>
+      <div class="sub">Vertical Slice — Playtest Build</div>
+      <div class="version">v2.0.29</div>
+      <p>The dark does not hurry. It has never needed to.</p>
+      <a class="play" href="last-light-poc-v2_0_29.html">▶ Play Now</a>
+      <a class="changelog" href="CHANGELOG.md">View Changelog</a>
+      <div class="note">
+        This is a single-file browser game — nothing to install. Loads and
+        runs entirely client-side, works on mobile and desktop. Progress
+        is not saved between sessions (no server, no local storage) —
+        each visit starts a fresh campaign.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
