@@ -3,69 +3,173 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Last Light — Playtest</title>
+<title>Last Light — Vertical Slice</title>
+<meta name="description" content="Last Light: a tactical RPG vertical slice. Single-file browser game, nothing to install.">
 <style>
   :root{
     --void:#0a0908; --panel:#141210; --panel2:#1c1815; --line:#3a322a;
     --ash:#8c8377; --bone:#d8d0c0; --ember:#e2a33d; --ember-dim:#8a5f22;
-    --blood:#9c3b3b; --good:#7a9c6a;
+    --blood:#9c3b3b; --corrupt:#8a6fc2; --good:#7a9c6a;
   }
-  *{box-sizing:border-box}
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
   body{
-    margin:0; min-height:100vh; background:var(--void); color:var(--bone);
+    margin:0; background:var(--void); color:var(--bone);
     font-family:'Courier New', ui-monospace, monospace;
-    display:flex; align-items:center; justify-content:center; padding:20px;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+    position:relative;
+    overflow:hidden;
   }
-  .wrap{max-width:520px; width:100%}
-  .card{
-    border:1px solid var(--line); background:var(--panel);
-    padding:24px 20px; text-align:center;
+
+  /* Signature element: a slow ember pulse behind the mark, evoking the game's own
+     Beacon holding back the Darkness -- one deliberate flourish, nothing else moves. */
+  body::before{
+    content:'';
+    position:absolute;
+    top:50%; left:50%;
+    width:640px; height:640px;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(226,163,61,0.14) 0%, rgba(226,163,61,0.05) 35%, transparent 70%);
+    animation:emberPulse 6s ease-in-out infinite;
+    pointer-events:none;
   }
-  h1{
-    margin:0 0 4px 0; font-size:22px; letter-spacing:1px;
+  @keyframes emberPulse{
+    0%,100%{ opacity:0.55; transform:translate(-50%,-50%) scale(1); }
+    50%{ opacity:1; transform:translate(-50%,-50%) scale(1.08); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    body::before{ animation:none; opacity:0.8; }
+  }
+
+  .wrap{
+    position:relative;
+    max-width:560px;
+    width:100%;
+    text-align:center;
+  }
+
+  .mark{
+    font-size:32px;
     color:var(--ember);
+    letter-spacing:2px;
+    margin-bottom:6px;
+    text-shadow:0 0 24px rgba(226,163,61,0.35);
   }
-  .sub{color:var(--ash); font-size:13px; margin-bottom:20px}
-  p{line-height:1.6; font-size:14px; color:var(--bone)}
+
+  h1{
+    margin:0;
+    font-size:38px;
+    letter-spacing:8px;
+    font-weight:700;
+    text-transform:uppercase;
+    color:var(--bone);
+  }
+
+  .subtitle{
+    margin-top:10px;
+    font-size:12px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--ash);
+  }
+
   .version{
-    display:inline-block; margin:14px 0 20px 0;
-    color:var(--ash); font-size:11px; letter-spacing:1px;
-    border:1px solid var(--line); padding:4px 10px;
+    display:inline-block;
+    margin-top:14px;
+    padding:3px 10px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    color:var(--ash);
+    font-size:11px;
+    letter-spacing:1px;
+    border-radius:2px;
   }
-  a.play{
-    display:block; text-decoration:none;
-    background:#2a2010; border:1px solid var(--ember-dim); color:var(--ember);
-    padding:14px; font-size:16px; letter-spacing:1px; font-weight:bold;
-    margin-bottom:14px; transition:border-color 0.15s, color 0.15s;
+
+  .tagline{
+    margin:28px 0 34px;
+    font-size:14px;
+    font-style:italic;
+    color:var(--ash);
+    line-height:1.6;
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    padding:18px 8px;
   }
-  a.play:hover{border-color:var(--ember); color:#f0c060}
-  a.changelog{
-    display:inline-block; color:var(--ash); font-size:12px;
-    text-decoration:underline; text-decoration-color:var(--line);
+
+  .actions{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    flex-wrap:wrap;
+    margin-bottom:30px;
   }
-  a.changelog:hover{color:var(--bone)}
-  .note{
-    margin-top:20px; padding-top:16px; border-top:1px solid var(--line);
-    font-size:12px; color:var(--ash); text-align:left; line-height:1.6;
+
+  .btn{
+    display:inline-block;
+    padding:13px 26px;
+    font-family:inherit;
+    font-size:13px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    text-decoration:none;
+    border-radius:2px;
+    border:1px solid transparent;
+    transition:transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+  }
+  .btn:focus-visible{
+    outline:2px solid var(--ember);
+    outline-offset:3px;
+  }
+  .btn-primary{
+    background:var(--ember);
+    color:var(--void);
+    font-weight:700;
+    border-color:var(--ember);
+  }
+  .btn-primary:hover{ background:#f0b352; transform:translateY(-1px); }
+  .btn-secondary{
+    background:transparent;
+    color:var(--bone);
+    border-color:var(--line);
+  }
+  .btn-secondary:hover{ border-color:var(--ash); transform:translateY(-1px); }
+
+  .notes{
+    font-size:11.5px;
+    line-height:1.8;
+    color:var(--ash);
+    max-width:440px;
+    margin:0 auto;
+  }
+  .notes b{ color:var(--bone); font-weight:700; }
+
+  @media (max-width:480px){
+    h1{ font-size:28px; letter-spacing:5px; }
+    .mark{ font-size:26px; }
   }
 </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="card">
-      <h1>✦ LAST LIGHT</h1>
-      <div class="sub">Vertical Slice — Playtest Build</div>
-      <div class="version">v2.0.51</div>
-      <p>The dark does not hurry. It has never needed to.</p>
-      <a class="play" href="last-light-poc-v2%200%2051.html">▶ Play Now</a>
-      <a class="changelog" href="CHANGELOG.md">View Changelog</a>
-      <div class="note">
-        This is a single-file browser game — nothing to install. Loads and
-        runs entirely client-side, works on mobile and desktop. Progress
-        is not saved between sessions (no server, no local storage) —
-        each visit starts a fresh campaign.
-      </div>
+    <div class="mark">✦</div>
+    <h1>Last Light</h1>
+    <div class="subtitle">Vertical Slice — Playtest Build</div>
+    <div class="version">v2.0.54</div>
+
+    <p class="tagline">"The dark does not hurry. It has never needed to."</p>
+
+    <div class="actions">
+      <a class="btn btn-primary" href="last-light-poc-v2%200%2054.html">▶ Play Now</a>
+      <a class="btn btn-secondary" href="CHANGELOG.md">View Changelog</a>
     </div>
+
+    <p class="notes">
+      This is a <b>single-file browser game</b> — nothing to install. Loads and runs
+      entirely client-side, works on mobile and desktop. Progress is <b>not saved</b>
+      between sessions (no server, no local storage) — each visit starts a fresh
+      campaign.
+    </p>
   </div>
 </body>
 </html>
