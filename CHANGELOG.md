@@ -20,6 +20,1356 @@ _Nothing staged yet._
 
 ---
 
+## [v2.0.47] — Stage 0: Knockback + Leap Engine Primitives
+
+### Added — Minor
+- `applyKnockback()` and the Leap mechanic's core resolution
+  (`canLeapTo`/`resolveLeap`), built as standalone engine primitives ahead
+  of the abilities that would use them — Knockback and Leap were both
+  reserved-but-unbuilt in the Tag Vocabulary at the time.
+
+### Verified
+- Full combat sanity sweep shows no regressions (new code not yet wired
+  into any live ability).
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+
+---
+
+## [v2.0.48] — Stage 1: Backgrounds/Traits/HIDDEN_TALENT_PCT Rebalance
+
+### Changed — Significant
+- All 19 backgrounds (Miner deleted) rebalanced to a strict budget rule:
+  HP+ATK+DEF+AGI sums to exactly 3 per background. DEF field added (was
+  missing entirely from the original background design). Several weapon
+  affinity reassignments (Butcher→Dagger, Trapper→Quarterstaff); Heal
+  guarantee moved from Hermit to Acolyte.
+- All 12 named traits (+4 null slots) rebalanced to a zero-sum rule (mods
+  sum to 0). Precise replaces Wary. Plodding/Thickskinned now use 3 stats
+  while staying zero-sum.
+- `HIDDEN_TALENT_PCT` reduced from 0.15 to 2/21 (~9.52%), recalculated so
+  all 7 classes land at an even 14.29% distribution given 19 backgrounds
+  and 3 non-special backgrounds per weapon.
+
+### Verified
+- Full combat sanity sweep shows no crashes across the full background/
+  trait rebalance.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+
+---
+
+## [v2.0.49] — Stage 2: Primal Class + Weapon DEF Rebalance
+
+### Added — Significant
+- **Primal class** (Quarterstaff): Bull Charge and Feral Roar at Lv2;
+  Tiger-Form (Predator Pounce, using the Leap primitive from v2.0.47) and
+  Bear-Form (Wild Vigor) at Lv3. Guardian decoupled from the Quarterstaff
+  weapon tie entirely — now a pure `canHeal` override, no weapon
+  dependency.
+
+### Changed — Minor
+- Weapon DEF values rebalanced under the confirmed budget rule
+  (ATK+DEF = 5-(range-1)): Spear ATK+2/DEF+3, Longsword ATK+4/DEF+0/
+  Move+1, Longbow ATK+4/DEF-1, Quarterstaff ATK+1/DEF+4, Dagger ATK+3/
+  DEF+0/Move+1.
+
+### Verified
+- Full combat sanity sweep shows no crashes with Primal live in the
+  class pool.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent — not yet
+  investigated further.
+- 11 of ~24 designed mutations still unimplemented (Primal's Leap usage
+  doesn't reduce this count — it's a class ability, not a mutation).
+- Fog/movement-range visibility gap still just proposed, not built.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+
+---
+
+## [v2.0.50] — Stage 3a: Lv2 Ability Retag/Reprice
+
+### Changed — Significant
+- All 18 Lv2 abilities moved onto the unified field-shape schema (stats+
+  pctReduction for debuffs, allyBuffStats/allyBuffPct/allyBuffDuration
+  for ally buffs, selfBuffStats/selfBuffPct/selfBuffDuration for self
+  buffs, knockback, riposteDuration) — no more effectTarget/amount/
+  setToZero except Move for Root.
+- Protective Ward → Light Ward (unconditional self+adjacent, fixed
+  range:1, not weapon-scaled). Safe Shot's range fixed at 1. Region-
+  reclass classes (Darkwarden/Duskhunter/Shadesinger/Nightsworn) use a
+  fixed numeric range instead of a weapon tie, since Guardian's
+  weapon-tie removal (v2.0.49) set the precedent that class identity
+  shouldn't require a specific weapon.
+- Allied Cost Framework confirmed: base 100%, -15% per tag, -15% per
+  range step beyond 1, -15% for AoE at range 1, +15% per cooldown-turn
+  offset. Region-reclass signature abilities explicitly exempted at
+  100% (a flagship-exception category, same one Execute would later
+  join).
+
+### Verified
+- Full combat sanity sweep shows no crashes across the full Lv2 retag.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real — not yet investigated further.
+- Win rates trending upward through Stage 1-3a (player-side buffs) —
+  flagged for a dedicated difficulty pass once the full rebalance lands.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+
+---
+
+## [v2.0.51] — Stage 3b: Lv3 Specialization Retag/Reprice
+
+### Changed — Significant
+- All Lv3 specializations retagged onto the same unified schema as Lv2:
+  pctReduction 50%→75%, statPct 25-30%→75%, Execute 200%/120%→300%/150%,
+  Thorn Armor→Blazing Armor/Sunborn, Sunwave heal 6→2, Beacon Ward
+  gained enemyDamage:2, Rampart gained allyRiposteDuration:1
+  (squad-wide riposte). Spore Contagion's stat changed DEF→ATK (now
+  uses the Weaken tag instead of Sunder).
+
+### Verified
+- Full combat sanity sweep shows no crashes across the full Lv3 retag.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real — win rates still trending upward
+  through the player-side buff passes (Stage 1-3b); enemy-side rework
+  (Stage 3c) queued next specifically to offset this.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+
+---
+
+## [v2.0.52] — Stage 3c (Partial): Enemy Signature Ability Retag
+
+### Changed — Significant
+- Enemy signature abilities retagged to match the player-side schema:
+  pctReduction 50%→75% across the board. Dread Strike (Dreadspawn)
+  cooldown 4→3, damage multiplier 1.3→1.0. Broodmother's Brood Swarm
+  cooldown 2→3. Elder's Wrath's DEF effect changed from a hard
+  setToZero to pctReduction:0.75 — the last hard-zero stat effect
+  anywhere in the ability system at the time (later removed entirely
+  in v2.1.0's boss rework). Rabid Lunge (Hound) lost its fullHpOnly
+  gate, gained firstAttackBonus:0.15 (the Alpha Strike mechanic)
+  instead.
+- Boss `dmgMult` sitting at a flat 1.0 regardless of melee/ranged type
+  flagged as inconsistent but deliberately deferred — bosses were
+  already known to be severely underpowered and slated for their own
+  dedicated rework pass rather than a partial fix here.
+
+### Verified
+- Full combat sanity sweep shows no crashes across the enemy-side
+  retag.
+
+### Known Issues (carried into [Unreleased])
+- Win rates rose through every player-side stage (1-3b), partially
+  offset by this enemy-side stage — tier-matched sweep still shows
+  90%+ across the board when squad level matches mission tier,
+  considered too easy. Dedicated difficulty recalibration pass needed.
+- **Critical discovery, not yet acted on**: the test harness's AI
+  (`performAITurn()`) never invokes `BUFF_ABILITIES` or
+  `SPECIALIZATION_SKILLS` for any class — every win-rate sweep this
+  entire rebalance has measured basic-attack-and-stat-modifier combat
+  only, never the actual ability rebalance in simulation. **Resolved
+  in v2.1.0** (ability-aware AI), see below.
+- Boss rework still deferred — bosses confirmed severely underpowered.
+  **First addressed in v2.1.0**, fully reworked in v2.1.1-v2.1.2.
+- 11 of ~24 designed mutations still unimplemented. **13 new mutations
+  added across v2.1.1**, closing most of this gap.
+
+---
+
+## [v2.0.53] — Bug Fix: Post-Mission Sequence Order (Darkness vs. Tithe)
+
+Reported: a mission could end in an unwinnable game-over even when a due
+tithe payment should have been able to prevent it.
+
+### Root cause
+`endBattle()` ran `processDarkness()` before `processTithe()` — if
+darkness was already high enough to trigger a game-over on its own rise,
+that check fired before the tithe payment (which reduces darkness) ever
+had a chance to apply.
+
+### Fixed
+- Reordered `endBattle()`'s post-mission sequence: gold → upkeep/
+  stipend/tithe → darkness rises last, so a due tithe payment can always
+  reduce darkness before the game-over check evaluates it.
+
+### Verified
+- Full combat sanity sweep shows no regressions.
+
+### Known Issues (carried into [Unreleased])
+- Whether a cancelled expedition should ever be eligible to pay the
+  tithe is a related open design question, surfaced while fixing this.
+  **Addressed in v2.0.54**, see below.
+- Difficulty recalibration still pending (carried from v2.0.52).
+- Boss rework still deferred (carried from v2.0.52).
+
+---
+
+## [v2.0.54] — Fixed: cancelExpedition() No Longer Advances a Day
+
+### Root cause
+`cancelExpedition()` called `processDarkness(false)`, `chargeUpkeep(1)`,
+and `applyNobleStipend()` — the same day-advancement side effects as
+actually completing a mission, even though cancelling happens *before*
+a battle and shouldn't cost a day. `applyNobleStipend()` in particular
+was an exploitable free-gold path.
+
+### Fixed
+- Removed all three calls from `cancelExpedition()`. Reputation loss on
+  cancellation is kept (that's an intentional cost, not a day-advance
+  side effect).
+
+### Verified
+- Full combat sanity sweep shows no regressions (economy-only change).
+
+### Known Issues (carried into [Unreleased])
+- Difficulty recalibration still pending (carried from v2.0.52).
+- Boss rework still deferred (carried from v2.0.52).
+- Ability-aware AI gap still unresolved (carried from v2.0.52).
+  **Resolved in v2.1.0**, see below.
+
+---
+
+## [v2.0.55] — Bug Fix: "undefined ATK&Move" on Lv2 Ability Choice Screen
+
+Reported: Lv2 ability choice screen showing "undefined ATK&Move" instead
+of a real effect description; separately reported that Lv2 choices
+sometimes didn't appear at all after a Boss Hunt mission.
+
+### Root cause
+Two duplicate copies of ability-label-building logic (in-battle action
+buttons, and the Lv2 choice screen) were never updated when Stage 3a
+(v2.0.50) moved abilities onto the pctReduction schema — both still
+read the retired `a.amount` field, which is `undefined` for every
+retagged ability. Worse: for abilities with no `stats`/`stat` field at
+all (Bull Charge, Feral Roar, Safe Shot), the resulting template string
+crashed `renderResult()` mid-render, leaving the screen blank — the
+actual root cause of Lv2 choices silently failing to appear on regular
+Boss Hunt missions, not a separate bug from the "undefined ATK&Move"
+report.
+
+### Fixed
+- Extracted a shared `abilityEffectLabel(a)` helper, used by both the
+  in-battle button and the Lv2 choice screen — the two call sites can no
+  longer drift out of sync the way they did here.
+
+### Verified
+- Direct simulation of the exact crash path (an ability with no stats
+  field) confirmed fixed.
+- Full combat sanity sweep shows no regressions.
+
+### Known Issues (carried into [Unreleased])
+- Difficulty recalibration still pending.
+- Boss rework still deferred.
+- Ability-aware AI gap still unresolved.
+
+---
+
+## [v2.0.56] — Bug Fix: Level-Up Choices Missing After Capstone Boss Hunt
+
+Reported directly: "Post Boss Hunt recruits leveled up with no [Lv2/Lv3/
+stat] choice appearing."
+
+### Root cause
+`pendingChoice`/`pendingAbilityChoice`/`pendingSpecializationChoice`
+were only ever rendered inside `renderResult()`. Capstone missions route
+to a separate victory screen, `renderVictory()`, entirely bypassing
+`renderResult()` — so any pending training choice earned on a capstone
+mission specifically was silently dropped from the UI, even though the
+underlying data was set correctly.
+
+### Fixed
+- Extracted `renderPendingTrainingChoices()`, a shared function used by
+  both `renderResult()` and `renderVictory()`. "Continue the Legend" is
+  now disabled with a "Resolve training above to continue" label
+  whenever anything's pending, mirroring `renderResult()`'s existing
+  button-gating pattern.
+
+### Verified
+- Direct tests against real `renderPendingTrainingChoices()`/
+  `renderVictory()`/`renderResult()` calls confirmed all 3 choice types
+  render and block the continue button when pending, and re-enable
+  correctly once resolved.
+- Full combat sanity sweep shows no regressions.
+
+### Known Issues (carried into [Unreleased])
+- Difficulty recalibration still pending. **Addressed at length across
+  v2.1.0-v2.1.2**, see below.
+- Boss rework still deferred. **Addressed across v2.1.0-v2.1.2**.
+- Ability-aware AI gap still unresolved. **Resolved in v2.1.0**.
+
+---
+
+## [v2.1.0] — Difficulty Rebalance Pass + Boss Hunt Rework (Significant)
+
+The largest single pass in the project's history. Summarized here;
+cross-reference the in-file HTML changelog comment (same version tag)
+for full narrative detail on each sub-decision.
+
+### Added — Significant
+- **Ability-aware test harness AI**: `tryAbility()`/
+  `trySpecializationSkill()`, resolving the critical gap flagged in
+  v2.0.52 — `performAITurn()` previously only used a basic attack or the
+  legacy Cast/Heal actions, meaning every sweep in this project's history
+  had measured stat/weapon changes only, never whether a specific
+  ability's rebalance had any real effect. Not tactically smart
+  (abilities fire the instant available, no positional judgment) but the
+  first time ability usage has been measured at all.
+- **Boss Hunt rework, phase 1**: bosses now inherit their own rolled
+  archetype's signature ability (via `getEnemyAbilities()`) instead of a
+  single universal `BOSS_ABILITY` ("Elder's Wrath") disconnected from
+  flavor; stats derive from the archetype via a `buildBossHuntElite()`
+  function kept fully separate from the shared `buildEliteUnit()`, so
+  Stalk's mid-battle elite and Arena Bout are unaffected. Every Boss Hunt
+  boss guaranteed 1-2 mutations (never 0) from a new boss-exclusive pool:
+  Enraged, Numbed, Vampiric, Splitting (new), plus Two-headed and Bloated
+  (reused from the regular pool).
+
+### Changed — Significant
+- Tier 2-4 enemy archetype stats retuned via extensive matched-tier and
+  multi-mission-attrition testing (a squad plays consecutive missions
+  with no free heal between them, confirmed as the game's actual design
+  — this surfaced a large gap between single-mission and in-context
+  difficulty the original tier sweeps had been missing). Hound ATK
+  5→6/DEF 0→1, Viper HP 7→9/DEF 1→2, Spitter HP 8→12/DEF 1→2/AGI 4→3,
+  Binder HP 10→14/ATK 4→6/DEF 2→4. Tier 4's starting spawn count and
+  wave-reinforcement pool composition changed to mirror Tier 3's (a
+  diagnostic finding: `enemyPool()`'s tier-depth weighting meant a
+  "normal" T4 mission was mostly spawning T1-3 archetypes, not what the
+  archetype table implied) — this fix doesn't apply to Boss Hunt, which
+  was later found to have no wave mechanic at all.
+- Blazing Armor (Guardian/Sunborn) given a new `adjacentEnemyDamage`
+  field after isolated-specialization testing found it trailing its
+  sibling Lightwalker by 18.6 points — it contributed zero offense
+  where Sunwave contributes guaranteed heal+chip damage every cast for
+  the same cooldown.
+
+### Verified
+- Extensive empirical testing throughout (see in-file comment for full
+  methodology): matched-tier sweeps, multi-mission attrition sequences,
+  isolated single-archetype tests, noise-floor demonstrations (repeat
+  runs of identical configs to distinguish real effects from sampling
+  variance at N=100-300).
+- Full combat sanity sweep across all 6 mission types x 4 tiers shows no
+  crashes.
+
+### Known Issues (carried into [Unreleased])
+- Boss Hunt's overall win rate not yet tuned — durability (hits-to-kill)
+  and win-rate turned out to be separable problems; only durability
+  addressed here. **Continued across v2.1.1-v2.1.2**, see below.
+- T2's specific numbers noisier than other tiers during this pass —
+  flagged as needing a larger-N confirmation run, not yet done.
+- Region-reclass mutation consolidation (Snare→Slow, remaining retags)
+  still deferred.
+- 11 of ~24 designed mutations still unimplemented. **Closed almost
+  entirely in v2.1.1**, see below.
+
+---
+
+## [v2.1.1] — Mutation System Consolidation + Packaging Fix (Significant)
+
+### Fixed — Critical (Packaging)
+- **v2.1.0 shipped with `window.addEventListener('DOMContentLoaded',
+  startNewCampaign)` missing entirely** — the game loaded to a blank
+  screen (nav bar only) until "New Campaign" was clicked manually, which
+  calls `startNewCampaign()` directly and masked the missing
+  auto-trigger. Root cause: the testing workflow extracts the game's
+  script into a standalone file for the Node harness, and that
+  extraction has stripped `DOMContentLoaded` from the very start
+  (headless Node has no real browser event to fire it against) — every
+  edit since v2.0.56 was applied to that pre-stripped working copy, and
+  packaging v2.1.0 substituted it back into the HTML wrapper without
+  re-adding the line. Fixed directly in the v2.1.0 file after being
+  reported; packaging process for this and all subsequent releases now
+  explicitly grep-verifies the line's presence at each step rather than
+  trusting the substitution blindly.
+
+### Changed — Significant
+- **Mutation pool consolidation**: replaced `MELEE_MUTATIONS`/
+  `RANGED_MUTATIONS`/`BOSS_MUTATIONS` (three separate arrays) with one
+  unified `MUTATIONS` pool (25 entries). Eligibility (`'melee'`/
+  `'ranged'`, either or both) is now an explicit field per mutation
+  instead of "which array is it physically written in" — verified with
+  3,000+ trial sweeps: zero melee-only mutations ever rolled on a
+  ranged unit. 6 old melee/ranged flavor-twin pairs merged into single
+  entries (confirmed byte-for-byte mechanically identical before
+  merging, not assumed from names): Blighted/Fungal, Sporehazed/
+  Sporetainted, Tentacled/Infected, Leaking/Sizzling, Clawed/Barbed,
+  Rabid/Lurking. `Chitenous` corrected to the proper spelling
+  `Chitinous`.
+- 4 mechanics promoted from boss-exclusive to the general pool
+  (confirmed intentional): Frenzied (renamed from Enraged), Numbed,
+  Vampiric, Splitting.
+- 10 new mutations added, including the first two real implementations
+  of the Trigger tag (reserved but unbuilt since the original Tag
+  Vocabulary consolidation): Parasitic (spawns a Crawler on death) and
+  Pustuled (explodes for 1 AoE damage on death). Frog-Legged applies the
+  Leap mechanic (built for Predator Pounce in v2.0.47) to the mutation
+  pool for the first time. Sadistic is a genuine stacking counter,
+  distinct from Frenzied/Numbed's fresh-every-attack recompute.
+  Vampiric's heal rate tuned from 70% (its original boss-only value,
+  confirmed too strong) down to 15%, worked out against real boss ATK
+  and average recruit DEF math.
+- Tag Vocabulary model updated (documentation only, no code change):
+  every tag now describes a mechanic shape, with magnitude set per
+  attachment rather than one fixed % enforced across every use — the
+  underlying code already worked this way, this just makes the
+  documentation match reality. The Cost Framework's per-tag-count
+  pricing remains a baseline formula, not extended to price magnitude.
+
+### Verified
+- Direct functional tests against real game functions for every new/
+  changed mechanism, not mocks, including catching and fixing 2 genuine
+  bugs during testing before shipping (an `ABILITY_LOOKUP` crash from an
+  incomplete Elder's Wrath removal; a live-investigated Frenzied damage
+  anomaly that turned out to be a test-script artifact, confirmed via
+  isolated reproduction before being ruled out as shipped-code behavior).
+- Full combat sanity sweep across all 6 mission types x 4 tiers shows no
+  crashes.
+
+### Known Issues (carried into [Unreleased])
+- Boss Hunt win-rate tuning still incomplete (carried from v2.1.0).
+  **Continued in v2.1.2**, see below.
+- Region-reclass mutation consolidation (Snare→Slow) still deferred.
+- Capstone/Arena Bout boss stat rework still deferred (only got an
+  ability-inheritance fallback in v2.1.0, not the full stat rework).
+
+---
+
+## [v2.1.2] — Enemy Pathfinding + Stat-Math Bug Fixes + Full Boss Stat Model Rewrite (Significant)
+
+### Fixed — Critical
+- **Enemy pathfinding**: reported directly from a real Boss Hunt
+  screenshot — two minions stuck directly behind the boss, never
+  routing around despite open tiles being available. Root cause:
+  `enemyAct()`'s movement was a naive greedy step-toward-target loop
+  whose only fallback (try pure-X or pure-Y if the diagonal step was
+  blocked) is a no-op whenever the target is in a straight line rather
+  than diagonal — exactly the reported case. Fixed by reusing the game's
+  own existing Dijkstra pathfinder (`dijkstraSweep`/`findPath`), already
+  proven since player movement-range preview and click-to-move have
+  depended on it — enemies simply never used it. Flagged directly: this
+  makes the game somewhat harder on average, independent of anything
+  else, since enemies that used to get stuck now reliably reach the
+  squad.
+- **Five related stat-math bugs**, reported together and traced to two
+  root causes:
+  - Every percentage-based buff/debuff (9 separate call sites across
+    Lv2 abilities, Lv3 skills, and enemy abilities) computed its delta
+    against the target's CURRENT, potentially already-modified stat
+    rather than a stable base — stacking effects compounded
+    multiplicatively, and a buff applied to an already-negative stat
+    made it more negative instead of correcting it. Fixed with a
+    `base{atk,def,init,move}` snapshot taken once battle begins (and at
+    each of the 3 mid-battle spawn points, which need their own since
+    they happen after that snapshot), and repointed all 9 sites at it.
+  - Floor-at-zero: even with the base-stat fix, multiple different
+    debuff sources stacking against the same base can still sum past
+    zero. Clamped once at the point combat math actually reads the
+    value (`attackUnit`'s rawAtk/rawDef/rawInit) rather than chasing a
+    floor into every individual application site.
+  - Splitting: clones were observed still carrying the Splitting
+    mutation, risking runaway re-splitting. The `hasSplit` flag alone
+    should have prevented this — made it structurally impossible
+    instead, stripping `'Splitting'` from both copies' mutation lists
+    the moment a split resolves.
+
+### Changed — Significant
+- **Boss stat model rewritten twice this pass**, each iteration driven
+  by a measured failure, not assumption. First rewrite: HP now derives
+  from the actual deployed squad's average damage output against a
+  tier-scaled hits-to-kill target (final curve: 4 hits at T1, +2 per
+  tier), replacing a fixed archetype multiplier confirmed too strong in
+  real play — the first version of this fix used a flat 25-hit target
+  at every tier and produced a 221 HP T1 boss with a confirmed 0% win
+  rate, since 25 hits was only ever validated at T4. Second rewrite:
+  ATK/DEF are now pinned to HP (scaled by how much bigger this boss's HP
+  is than its own archetype's base HP, preserving the archetype's
+  internal proportions) instead of an unrelated degree-exponent —
+  dampened with a square root (an 8x-HP boss would otherwise mean 8x
+  ATK, a near-guaranteed one-shot), then capped at 2.5x on top of that
+  after diagnostic tracing showed sqrt-dampening alone wasn't enough for
+  low-base-HP archetypes (Crawler/Hound/Viper/Broodmother) specifically.
+- One bug caught mid-process, not glossed over: a `degreeHpMult` formula
+  assumed the wrong baseline for the regular-boss `degree` value (2, not
+  1, per a convention locked in earlier), silently giving regular bosses
+  a capstone-intended 1.5x HP multiplier — found by directly
+  re-verifying a suspicious result by hand rather than accepting it.
+- Boss Hunt minion count tuned separately once boss-only isolation
+  testing showed the boss alone performing well (82-100% win rate at
+  every tier) while the full mission lagged 20-53 points behind at
+  every tier — minions, untouched by the boss-specific work, were the
+  actual bottleneck. Final curve: 2/2/10/10 minions across T1-4 (floor
+  of 2, never 0 or 1, per direction). T3 and T4 both showed strong
+  resistance to modest count increases before responding to a much
+  larger jump; T4 specifically overshot hard (26.7% win rate) at one
+  intermediate value before narrowing back to target.
+
+### Verified
+- Direct functional tests against real `attackUnit()`/`checkSplitting()`/
+  `enemyAct()` calls for every fix, not mocks.
+- Final matched-tier/level Boss Hunt results: T1 90.0% (target 85%), T2
+  66.7% (target 75%), T3 71.7% (target 65%), T4 51.7% (target 55%) — all
+  four within normal sampling noise of target.
+- One stale-test-file bug caught mid-iteration (a cached test script
+  hadn't picked up the latest minion-count formula, producing a bogus
+  5% reading that contradicted a 12/12-win manual trace) — rebuilt fresh
+  and re-verified before trusting any further results, rather than
+  reporting the contradiction as a real finding.
+- Full combat sanity sweep across all 6 mission types x 4 tiers shows no
+  crashes.
+
+### Known Issues (carried into [Unreleased])
+- Capstone/Arena Bout still on the older, un-rewritten boss stat model
+  — only Boss Hunt got the full HP-relative-to-squad-damage +
+  pinned-ATK/DEF rework in this pass.
+- Region-reclass mutation consolidation (Snare→Slow, remaining retags)
+  still deferred.
+- GitHub index (`index.html`) and this changelog file must be updated
+  with every future version going forward — process gap identified
+  after this release (the index wasn't updated for v2.1.2 until
+  flagged, and this file hadn't been updated since v2.0.46).
+
+---
+
+## [v2.0.46] — Removed Redundant "New Campaign" from Capstone Victory
+
+### Changed — Minor
+- Removed "Begin a New Campaign" from the capstone Victory screen
+  (`renderVictory()`) — redundant next to "Continue the Legend", which
+  is already the correct path into the post-capstone region-reclaim
+  content, and starting fresh right after finally winning the capstone
+  isn't something the flow should be inviting at that exact moment.
+- New-campaign capability is untouched everywhere it's actually
+  appropriate: still on the persistent header (available from any
+  screen) and on `renderGameOver()` (a genuinely different context —
+  campaign-ending loss, where starting fresh is the only sensible next
+  step).
+
+### Verified
+- Confirmed the remaining `startNewCampaign()` button belongs to Game
+  Over, not a second instance of the same issue, before leaving it
+  alone.
+- Full combat sanity sweep shows no regressions (UI-only change).
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.45] — Fixed: Remaining INIT References (Trinkets + Merc Skills)
+
+Reported: Silver Torc, Quicksilver Ring, Arcane Surge, and Disarming
+Strike still showing INIT.
+
+### Root cause
+The real scope was much bigger than the 2 reported items: **13 separate
+places** doing raw `s.toUpperCase()` on stat keys, completely bypassing
+the v2.0.17/v2.0.31 AGI-labeled formatters. `formatTraitMods` and
+`describeAbility` were fixed back then, but the *live* battle-log/
+button-label generation code (`useAbility`, `resolveSkillAttack`,
+`useSpecializationSkill`) independently built its own stat-name strings
+and was never audited. Also found a **third, previously-undiscovered
+parallel formatter**, `describeSkill()` (used by the Lv3
+specialization-choice screen and the live battle-screen action button),
+with its own 4 raw `toUpperCase()` calls.
+
+### Fixed
+- Added a shared `statAbbrev()` helper and routed all 13 real sites
+  through it: the 2 reported trinkets, Arcane Surge's and Disarming
+  Strike's live battle-log text, the Lv2 ability-choice screen, the Lv3
+  specialization-choice screen, the live battle-screen action button
+  (arguably the *most* visible instance of all — shown every turn), and
+  the permanent-injury tag (`INJURY_TYPES` includes init-affecting
+  injuries too, so this was also silently affected).
+
+### Caught mid-process
+- Two `str_replace` edits accidentally dropped adjacent lines while
+  trimming a `toUpperCase()` call down to a `statAbbrev()` call — one
+  caused a real syntax error (an `if(effectiveSetToZero){` opening
+  brace vanished, breaking the if/else-if/else chain), the other
+  silently dropped an `effectLabel` assignment. Both found via
+  syntax-check and direct output testing before shipping, not left in.
+
+### Verified
+- `statAbbrev()` correctness confirmed for all 5 mapped stats.
+- Full scan of `describeSkill()` output across every
+  `SPECIALIZATION_SKILLS` entry for lingering "init" — none found.
+- Direct simulation of the exact Arcane Surge and Disarming Strike code
+  paths (self-buff label, live-debuff label, Lv2-choice-screen label,
+  battle-button label) — all four independently confirmed "AGI".
+- 15 real, fully-simulated missions checked for lingering INIT in actual
+  battle logs — none found.
+- Full combat sanity sweep shows no regressions.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.44] — Fixed: Dropdown Tooltips Getting Cut Off
+
+Reported: battle log ability tooltip getting clipped.
+
+### Root cause
+`tappableTag()`'s panel had no way to override the default `.taginfo`
+80px max-height cap — that cap was sized for short single-clause
+tooltips, but `describeAbility()` output (added v2.0.31) can run to 2-3
+combined clauses.
+
+### Fixed
+- Added an optional 5th `panelStyle` parameter to `tappableTag()`
+  (backward-compatible — every existing call site without it is
+  unaffected), rather than a one-off patch, since the same clipping
+  could recur anywhere long content meets this function.
+- Fixed the reported case (battle log, longest actual description 168
+  chars) plus two others found by auditing all `tappableTag()` content
+  lengths while investigating, rather than stopping at the one instance:
+  the Caster tag tooltip (204 chars — even longer than the reported
+  case) and the Deploy screen's mutation-scouting tooltip (a
+  3-mutation enemy's combined description runs 207 chars across
+  multiple lines — likely the worst case of the three).
+- All three now use `max-height:180px`, sized with margin above the
+  measured longest real content rather than guessed.
+
+### Verified
+- `tappableTag()`'s backward compatibility confirmed — calls without
+  the 5th param render identically to before.
+- The new parameter confirmed to apply the custom style correctly and
+  independently of the existing `extraStyle` (tag-level) parameter.
+- Full combat sanity sweep shows no regressions (UI-only change).
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.43] — Bonds: Capped at 1, Reset on Death
+
+### Changed
+- **Capped**: previously stacked — a recruit bonded with both other
+  squad members got the +1 ATK/+1 DEF bonus *twice*, applied
+  unconditionally per qualifying pair. Now checks each side
+  independently before applying and skips a unit that's already
+  received its one bond bonus this battle — a unit bonded with 2
+  partners still only gets 1 bonus, but their other bonded partner (if
+  not yet bonused) still gets theirs.
+- **Reset on death**: `missionsWith` previously just went orphaned when
+  a partner died — harmless in practice since recruit IDs are never
+  reused, but not an explicit, intentional reset. Now explicitly clears
+  the survivor's entry for any recruit who truly falls, using the final
+  death list (after the injury-survival roll resolves), not the initial
+  hp≤0 one.
+- Company Hall's bond tooltip now notes the cap whenever a recruit has
+  more than one qualifying bond, since each tag previously claimed the
+  full bonus independently, overstating the total for that case.
+
+### Verified
+- Cap confirmed via a 3-recruit squad with all 3 pairs bonded (worst
+  case) — every unit landed at exactly +1, not +2 or +3, through a real
+  `beginBattle()` call.
+- Reset-on-death verified twice: a simple forced-death case, and the
+  tricky edge case where one recruit truly dies and another is pulled
+  back by the injury-survival roll in the same battle — confirmed the
+  injury-survivor's bond with the truly-dead partner resets correctly
+  while their bond with a still-alive third recruit stays intact.
+- Company Hall confirmed to render without error for both single-bond
+  and multi-bond recruits.
+- Full combat sanity sweep shows no regressions.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.42] — New: Replace Mission Button
+
+### Added
+- **Replace Mission** button on the Expedition Board — pays gold to swap
+  one random mission for a freshly generated one.
+- Cost is exactly double `refreshCandidatesCost()` (Recruitment
+  Office's pool-refresh price) with the same rep-tier scaling: 20/30/40/50g
+  across tiers 0-3.
+- No confirm step, matching `refreshCandidates()`'s own pattern —
+  straightforward gold-gated action, not a destructive/irreversible one
+  like Retire or Ordain.
+
+### Verified
+- Cost confirmed exactly 2x `refreshCandidatesCost()` at every rep tier
+  tested.
+- Swap logic confirmed to replace exactly one mission (2 of 3 originals
+  remain) and deduct the correct amount.
+- Insufficient gold confirmed to block the action entirely (gold and
+  mission list both unchanged).
+- Full combat sanity sweep shows no regressions (economy-only change).
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.41] — Removed Temple's Recruitment Bias
+
+### Changed
+- Removed Temple's caster/healer recruitment bias (`templeBias: true →
+  false`), matching the exact treatment Thieves' bias got in v2.0.15.
+- Static `desc` ("Healing, learning, and light against the dark") left
+  untouched — identity flavor tied to Temple's other real bonuses
+  (cheaper upkeep, slower Darkness growth, faster rest recovery), not a
+  mechanic claim, same reasoning as leaving Thieves' "Light fingers"
+  alone.
+- Auto-generated tagline text ("more healers & casters in recruitment
+  pool") is conditional on the flag itself, so it suppresses
+  automatically with no separate edit needed.
+
+### Verified
+- Flag confirmed `false`.
+- A 300-roll recruitment sample under Temple patron showed 18.3%
+  Heal/Cast-eligible backgrounds — closely matching the expected
+  unbiased baseline (4 of 20 background types = ~20%), a sharp contrast
+  to the ~52% the old 40%-chance-per-roll bias would have produced.
+- Full combat sanity sweep shows no regressions.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.40] — MAJOR BUG FIX: Capstone Repeatable Post-Victory
+
+The capstone was repeatably attemptable for its full 600g/50rep reward
+even after being won.
+
+### Root cause
+`G.hasWon` gets set `true` on capstone victory (`endBattle`), but it was
+only ever *checked* elsewhere to unlock the post-capstone region-reclaim
+layer — never to gate the capstone mission itself back out.
+`buildCapstoneHtml()` showed the "Face [boss]" attempt button
+unconditionally whenever the rep/veteran readiness thresholds were met,
+with no check for whether it had already been won.
+
+### Fixed
+- Fixed at both the display and function level (defense in depth, same
+  pattern as the debuff-revert safety net): `buildCapstoneHtml()` now
+  shows a "conquered" state instead of the attempt button once
+  `G.hasWon` is true, and `embarkCapstone()` itself now refuses to
+  proceed even if called directly.
+
+### Verified
+- Two passes — first pass caught my own test-fixture gap (forgot to set
+  `G.maxVeteransEverAchieved`, so the readiness check was false
+  throughout and the positive case was never actually exercised).
+  Rebuilt with the readiness threshold properly satisfied: confirmed the
+  button correctly shows when legitimately ready and not yet won,
+  correctly shows the conquered state instead once won, and
+  `embarkCapstone()` confirmed to refuse deployment after a win.
+- Full combat sanity sweep shows no regressions.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.39] — Embark Confirm Gate for Incomplete Squads
+
+Reported: "only two mercenaries were selected when I intended 3."
+Considered a Back button first, but it would've needed to either lose
+the embarked mission from the board or restore it — more plumbing for a
+less direct fix. Went with gating the commit itself instead.
+
+### Added
+- A squad under 3 now requires a second confirming tap before embarking,
+  matching the established two-click pattern (Retire, Ordain, Expand
+  Barracks).
+- `confirmEmbarkAndDeploy()`, shared by all 10 embark-family functions
+  (`embark`, `embarkArenaBout`/`Mission`, `embarkAgoraMission`/`Toll`,
+  `embarkElysiumMission`/`Hunt`, `embarkTempleMission`/`Rite`,
+  `embarkCapstone`), which otherwise duplicated the exact same final
+  commit pair verbatim.
+- `embarkButtonHtml()`, a shared renderer for all 10 corresponding
+  buttons — same duplication existed there too.
+
+### Changed — Minor
+- `embark()` itself needed special handling since it has a side effect
+  (swapping the picked mission out of the board for a new one) that
+  must happen *after* confirmation, not before — restructured inline
+  rather than routing through the shared helper, so a first tap with an
+  incomplete squad never touches the board.
+- `toggleSquad()` now resets the confirm flag on any selection change,
+  so a stale confirm-armed state can't carry over after the squad is
+  fixed.
+
+### Verified
+- Confirm arms on the first call without starting deployment; second
+  call proceeds correctly with the right mission object.
+- `toggleSquad` confirmed to clear the stale confirm flag.
+- `embark()`'s mission-board swap confirmed to only fire on the
+  confirmed (second) call, not the first.
+- Full combat sanity sweep shows no regressions.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.38] — INIT Check + Chronicle Reordered
+
+### Checked, no fix needed
+- Searched exhaustively for lingering INIT/Initiative text — case-sensitive
+  grep, case-insensitive grep, and direct output testing of
+  `formatTraitMods()` (trinket tooltips) and `describeAbility()` (all 44
+  ability descriptions, including Cheap Shot which specifically targets
+  init+def). Zero player-facing instances found anywhere. Every
+  remaining match is either changelog history, the unrelated
+  "Initialization" section comment, or the coincidental `AFFINITY`
+  substring. Likely a stale cached build on the reporting end.
+
+### Changed — Minor
+- Chronicle strip moved above the Camp breadcrumb/nav-pills block in
+  `renderNavShell()` (shared by Company Hall, Recruitment Office,
+  Expedition Board, Reclaimed Territories, and the region-reclaim
+  pages) — was previously sandwiched between the nav pills and the page
+  content; now sits directly below the header on every page that uses
+  this shared shell. Pure reorder, no content or behavior changed.
+
+### Verified
+- Full combat sanity sweep shows no regressions (layout-only change).
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.37] — New: Hall of Fame
+
+Requested feature. Found and fixed a real blocker first: recruits who
+died in battle previously vanished with zero trace — `endBattle()`'s
+fallen-filter just removed them from `G.roster`, losing every stat
+permanently. Retired recruits were already fine (`G.retirees` is a
+permanent archive); death just never got the same treatment.
+
+### Added
+- `G.hallOfFameArchive`, populated right before the existing
+  fallen-filter line so nothing is lost anymore, mirroring the retirees
+  pattern. `allEverRostered()` combines active roster + retirees +
+  archive into one list, each entry tagged `active`/`retired`/`fell`.
+- **14 categories**, per direction ("add all existing tracked stats"):
+  kills, damage dealt, damage taken, missions completed, elites/bosses
+  slain, heals given, dodges, flawless missions, times wounded, deaths
+  cheated, first kills, battles fought while wounded, items found,
+  longest deployment streak.
+- New **Hall of Fame** button in Company Hall — top 5 shown per
+  category, each entry tagged with its status.
+
+### New tracking
+- **`damageTaken`** didn't exist before. Required auditing every place a
+  unit's HP can decrease (7 total spots) to find the ones where a
+  player could be the one taking damage — 5 needed hooks (normal
+  attacks, Spore Contagion, mutation splash, reflect/thorns, Corrosive
+  counter-damage), 2 correctly excluded (Cast Bolt and the enemyDamage
+  skill effect can only ever target enemies). `resolveSkillAttack` and
+  `useEnemyAbility` (Elder's Wrath's home function) both route through
+  `attackUnit` internally, so one hook covers both automatically.
+- **`peakConsecutiveDeployments`**: the existing `consecutiveDeployments`
+  resets to 0 whenever a recruit sits out an expedition, so using it
+  directly for "longest streak" would show current streak instead of
+  best-ever. Added a separate never-decreasing field instead.
+
+### Verified
+- `allEverRostered()` confirmed to combine and tag all three sources
+  correctly; `renderHallOfFame()` confirmed not to throw on empty and
+  populated data.
+- Full end-to-end test using the same `beginBattle()`/deploy pattern
+  established throughout this project (real patron object, real
+  `genRecruit()` output, real deployment): a recruit forced to fall
+  mid-battle with real stats correctly landed in the archive with the
+  right cause, was removed from the active roster, and showed up
+  correctly tagged — including a full `renderHallOfFame()` pass against
+  that real post-battle state, not just isolated function checks.
+- Full combat sanity sweep shows no regressions.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.36] — Compact Header Extended to Deploy
+
+### Changed — Minor
+- The v2.0.34 compact header was scoped to battle only, but Deploy has
+  the same problem (big header eating space above a screen that's also
+  mostly about the grid) — confirmed via screenshot that what was being
+  reported as "still full-size" was actually the Deploy screen, not
+  Battle. Battle itself was already correctly compact and already
+  hiding the icon+patron chip; Deploy just wasn't included in the
+  toggle yet.
+- Broadened the `render()` toggle from `G.screen==='battle'` to
+  `(G.screen==='battle'||G.screen==='deploy')`, and renamed the CSS
+  class from `battle-compact` to `compact-header` since it's no longer
+  battle-specific — same CSS rules otherwise, unchanged.
+
+### Verified
+- Toggle confirmed to apply the class on both battle and deploy, and
+  correctly stay empty on patron/landing/result.
+- Full combat sanity sweep shows no regressions (UI-only change).
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.35] — Block Chance Scales with DEF Advantage
+
+### Changed
+- Block chance now scales with how much greater the defender's
+  effective DEF is than the attacker's ATK, replacing the flat 20%:
+  - **<50% greater** → 20%
+  - **<100% greater** → 40%
+  - **≥100% greater** → 60% (cap)
+- `DEF === ATK` (0% greater) still qualifies for the lowest tier,
+  matching the old system's inclusive `atk<=effDef` boundary.
+- `DEF < ATK` now gives a genuine 0% (no block possible at all) — a
+  real behavior change from before, where equal-or-lower ATK than DEF
+  was the only gate, with no distinction between "just barely
+  qualifies" and "wildly outclassed" beyond a flat 20% either way.
+- Updated Help's Block paragraph to explain the new scaling instead of
+  the old flat number.
+
+### Verified
+- All 8 boundary cases (DEF<ATK, exactly equal, just under each
+  threshold, exactly at each threshold, and well past the top one)
+  confirmed to produce the exact expected tier.
+- Full combat sanity sweep shows no regressions — genuine combat-math
+  change, not cosmetic, so this got the same trial-based check as any
+  other balance change.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.34] — Block Chance Confirmed + Title & Battle Header Fixes
+
+### Checked, no fix needed
+- **Block chance** is a flat, non-scaling 20% whenever `ATK ≤ effective
+  DEF`, 0% otherwise — never higher, never 100%. Help's existing text
+  was already accurate. No "double attack"-style scaling tied to block
+  exists anywhere in the file; that's likely `repeatHit` (Twinstrike
+  Fury) or `dualTarget` (Dual Talonstrike/Twin Fang) being recalled
+  instead — unrelated specialization abilities.
+
+### Changed — Minor
+- **Title**: removed "Vertical Slice" from both the browser `<title>`
+  and the in-game `<h1>`, merged the version number directly into the
+  h1 instead of a separate small div below it.
+- **Battle-screen header** was taking up too much vertical space. Added
+  a `#mainHeader.battle-compact` class, toggled in `render()` scoped
+  specifically to `G.screen==='battle'` (every other screen keeps the
+  full header untouched): smaller h1, expedition/flavor sub-text
+  hidden, portrait+patron-name chip hidden, and Help/New Campaign
+  shrunk into a dedicated space-between row.
+
+### Verified
+- Ran a real battle and confirmed `render()` executes the new toggle
+  line without throwing, on every call, before all early-return
+  branches.
+- Confirmed every `battle-compact` CSS selector matches its JS string
+  exactly, no typos.
+- Full combat sanity sweep shows no regressions (UI-only change).
+
+### Note
+- Couldn't verify class-toggle *persistence* through the harness, since
+  its DOM shim's `getElementById()` returns a fresh fake element on
+  every call rather than a persistent node — a harness limitation, not
+  something that affects the real browser-facing code (`className`
+  assignment is standard DOM API).
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+
+---
+
+## [v2.0.33] — Debuff Death Fix + Stat Coloring + Mission Explanations
+
+Three parts, all requested together.
+
+### Fixed
+- **Debuffs (Elder's Wrath and all others) now end on the caster's
+  death**, not just on normal turn-based expiry. Previously neither
+  debuff system had any death trigger at all, so a debuff from a caster
+  who never got another turn just sat active indefinitely. This was the
+  root cause of the reported bug — Elder's Wrath's DEF-0 debuff
+  surviving all the way to the Company Hall screen, because the
+  debuffed recruit didn't get enough further turns before the battle
+  ended for the countdown to finish, and `endBattle()` had no cleanup
+  for leftover temp mods at all.
+- Added caster-id tracking to `applyTempMod` (updated all 14 call
+  sites) and a new `revertDebuffsFromDeadCaster()`, wired into all 5
+  separate death-finalization spots in the file (only 2 of which shared
+  code before this fix).
+- Added a hard safety-net at `endBattle()` that force-reverts anything
+  still outstanding on the whole squad regardless of cause, as a
+  guarantee against any future edge case doing the same thing.
+
+### Added
+- **Buffs/debuffs now visibly color-code the affected stat number** in
+  the shared ally/enemy status panel — green for buffed, red for
+  debuffed. The underlying numbers were already live and correct; this
+  makes a modification visible at a glance instead of only technically
+  correct.
+- **Mission-type explanations** in Help's Choosing a Mission section for
+  all 6 core types — each verified against exact code before writing.
+  Explore's instant-claim, Purge's 2-round hold, and Relic's
+  whole-squad-must-return requirement are genuinely different
+  mechanics, not variations on a theme, and Help now explains each one
+  precisely.
+
+### Verified
+- Ran 25 real, fully-simulated missions with a persistent squad,
+  checking for leftover debuff-tracking entries after every single
+  one — zero found.
+- `statModDirection()` confirmed correct for buffed/debuffed/untouched
+  stats.
+- Full combat sanity sweep shows no regressions across all three parts.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+- HP-color-border and Battle Key strip remain battle-screen only.
+
+---
+
+## [v2.0.32] — Help: Block Mechanic Visibility
+
+### Changed — Minor
+- Block was already explained in Help (added in v2.0.30's Combat Stats
+  paragraph), but as an unlabeled clause buried mid-paragraph next to the
+  damage formula — easy to miss since it had no bolded lead-in term like
+  every other Battle Basics sub-topic does. Split into three separately
+  labeled paragraphs (**Combat Stats** / **Block** / **Dodge**) instead
+  of one run-on paragraph. No content or mechanic changed, purely a
+  visibility/scannability fix.
+
+### Verified
+- Syntax check only — text-only change, no combat logic touched.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+- HP-color-border and Battle Key strip remain battle-screen only.
+
+---
+
+## [v2.0.31] — Spawn-Edge Fix + Elder's Wrath Check + Ability Tooltips
+
+### Fixed
+- **Wave spawn edge bug**: waves were hardcoded to a fixed east-side band
+  regardless of where the player actually entered — but the spawn zone
+  is randomly west/east/north/south, so waves could spawn right next to
+  or overlapping the player's entry area in ~75% of missions. Added
+  `oppositeEdgePoint()`, computed relative to `G.battle.spawnZone.edge`,
+  mirroring the original band width exactly for all 4 directions. Fixed
+  at both wave-spawn call sites (main `spawnWave` loop + Trial's
+  elite-wave branch).
+
+### Investigated, no fix needed
+- **Elder's Wrath**: confirmed working as designed. Universal boss
+  ability (not archetype-specific), uses the boss's own attack range,
+  single-target, normal damage. On a successful hit it also zeroes the
+  target's DEF for ~2 turns before automatically reverting.
+
+### Added
+- **Tap-to-expand descriptions for special-attack log lines** (both
+  enemy and ally), covering all 44 abilities across `BOSS_ABILITY`/
+  `ENEMY_ABILITIES`/`BUFF_ABILITIES`/`SPECIALIZATION_SKILLS`. Built as a
+  generic formatter (`describeAbility()`) reading each ability's raw
+  mechanical fields into plain-English text, rather than 44 hand-written
+  strings — self-maintaining, so a rebalanced or new ability gets an
+  accurate tooltip automatically.
+- Detects the combat log's consistent `"X uses Y!"` message pattern
+  (same across all 4 usage call sites) via `ABILITY_LOOKUP`, a combined
+  name→ability map.
+- Log entries now carry a stable `id` (`G.battle.logIdCounter`) instead
+  of relying on array position for the tappable-tag key — array index
+  would have broken expand-state persistence once a long battle's log
+  exceeds the existing 50-entry cap and old entries get shifted out.
+
+### Verified
+- All 4 spawn entry edges confirmed to produce waves strictly in the
+  correct opposite-side band.
+- All 44 abilities checked for suspiciously short/empty descriptions —
+  caught and fixed one real gap during verification (Arcane Surge's
+  plural `stats` array + `effectTarget:'self'` was silently dropped by
+  a buff clause that only checked the singular `stat` field).
+- Confirmed working end-to-end in a real fought battle (an actual
+  "Elder Broodmother uses Brood Swarm!" log line correctly became
+  tappable with the right description), not just checked in isolation.
+- Full combat sanity sweep shows no regressions across all three
+  changes.
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+- HP-color-border and Battle Key strip remain battle-screen only.
+
+---
+
+## [v2.0.30] — Help Page: Combat & Healing Mechanics
+
+All numbers checked against source before writing — same standard as
+every prior Help pass.
+
+### Added
+- **Healing, Wounds & Injuries** section — Wounds (survive a mission
+  ≤25% max HP, 2 random stats -1 each, mended 1/cycle + 25%/35% HP
+  recovery while benched) vs. Injuries (30% chance to survive a
+  would-be death instead, permanent -2 to one stat, never heals on its
+  own). These are genuinely different mechanics, not a rename of each
+  other, and Help now says so explicitly.
+- **Combat Stats** paragraph in Battle Basics — the actual damage formula
+  (`ATK − effective DEF + rand(-1,2)`, minimum 1), the 20% full-block
+  chance when `ATK ≤ effective DEF`, and the dodge formula
+  (`min(30%, AGI × 2%)`) — none of which were explained anywhere in Help
+  before, despite being the core of every fight.
+- **Casting & Healing** paragraph — Heal (2-4 HP, range 2, single-target)
+  and Cast Bolt (power `3 + veteran level × 2`, armor-piercing,
+  undodgeable, scales with veteran level) were previously only mentioned
+  by name ("Heal/Cast Bolt if they have it") with zero explanation of
+  what either actually does or how it scales.
+
+### Changed — Minor
+- Upkeep line now shows the exact formula
+  (`2 + tier×3 + veteranLevel×2`/day) instead of just "scales with tier
+  and level."
+
+### Verified
+- Full combat sanity sweep shows no regressions (text-only change).
+
+### Known Issues (carried into [Unreleased])
+- T3 difficulty trough confirmed real and consistent across Defense/
+  Bosshunt/Purge/Relic/Stalk (leveled-squad testing) — not yet
+  investigated further.
+- Leveled-squad vs. fresh-recruit discrepancy for Explore not yet
+  investigated.
+- The remaining 10 nickname thresholds remain flagged as tunable pending
+  further playtesting.
+- Trophy count (`elysiumTrophies`) still has no persistent header
+  indicator.
+- Broodmother's Brood Swarm summon ability remains unaddressed in Arena.
+- 11 of ~24 designed mutations still unimplemented.
+- Fog/movement-range visibility gap still just proposed, not built.
+- Pixel-graphics Phase 2 (actual sprite art) not started.
+- HP-color-border and Battle Key strip remain battle-screen only.
+
+---
+
 ## [v2.0.29] — Terrain Fix: Swamp Obstacle Trominoes
 
 ### Changed — Minor
