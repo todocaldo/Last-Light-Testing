@@ -454,6 +454,81 @@ for full narrative detail on each sub-decision.
 
 ---
 
+## [v2.1.3] — Temple Region Rework: Darkness/Tithe, Chain Rebalance, The Endless Rite, Unlock Condition (Significant)
+
+### Changed — Significant
+- **Darkness/tithe tuning**: `DARKNESS_PER_TITHE` raised 12→14 (closest integer
+  to a requested ~66-mission doom clock that still preserves guaranteed
+  eventual game-over -- 15+ creates a permanent sustainable steady-state,
+  confirmed via direct simulation). Lands at 59 missions under continuous
+  play. Waiting (`advanceDayAction`, a day advance with no mission attempted)
+  previously only charged upkeep -- darkness and the tithe clock stood
+  still, letting a player wait indefinitely with zero pressure. Now mirrors
+  the exact tithe-then-darkness sequence a real mission end uses.
+- **Temple chain rebalance**: starting enemy count set static at 3 across
+  all 4 steps (was a backwards-scaling 6/5/3/2). Root cause for a set of
+  unexplained losses: `cleanse`-type missions share the same wave-
+  reinforcement list as 5 other mission types, but place objectives far
+  from spawn by design and have no round limit -- a wave cadence tuned for
+  shorter engagements let one mission snowball to 28 total enemies by round
+  16. New per-step wave size/cap arrays replace the shared formula, tuned
+  against a 90/85/80/75% target curve. A new reusable test harness addition
+  (`RECLAIM_REGIONS`/`runReclaimTrial`/`testRegionStep`) now covers all 4
+  reclaim-chain regions going forward, not just Temple.
+- **The Endless Rite** (Temple's chain-ending unlock boss) went from a
+  confirmed literal 0% win rate to 46.7%, across five rounds of
+  investigation: boss reworked from the old pre-rework formula onto the
+  same `buildBossHuntElite()` system built for Boss Hunt; gentler wave
+  treatment plus a new 2-round delay before reinforcements start after the
+  boss ambushes (traced directly to a trial where the boss sat untouched at
+  91/91 HP while the squad wiped to leftover starting enemies); starting
+  count reduced 8-9→4→3; wave cap reduced 6→4 after tracing a 128-round
+  outlier to Broodmother's own Brood Swarm ability acting as a second,
+  uncapped reinforcement stream independent of the wave-cap system (left
+  uncapped per direction, accepted as a natural characteristic of that
+  archetype). The single biggest lever: `buildBossHuntElite()`'s
+  `TARGET_HITS` formula was only ever tested across Boss Hunt's own tier
+  range (max 18 hits at T4) -- Endless Rite's mission tier of 6 was silently
+  extrapolating it to 24, never validated. Capping the tier fed into the
+  formula at 4 took win rate from 13.3% to 46.7% in one change.
+- **Temple unlock condition** replaced an invisible mechanic (silently
+  counting missions where a Heal/Cast-background recruit merely existed in
+  the squad) with one matching the pattern already used by the other 3
+  reclaimable regions -- tied to an already-visible, thematically-matched
+  resource. Temple now uses total darkness reduced via successful tithe
+  payments (100 threshold, ~7 tithes), reinforcing the darkness/tithe system
+  reworked in this same version rather than an undiscoverable requirement.
+
+### Verified
+- Feasibility re-check (the original question motivating this version):
+  expected-attempts math against final tuned values puts reaching
+  Temple-reclaimed plus a Lv3 Darkwarden at ~25.7 expected missions against
+  the 59-mission darkness budget (44% used) -- confirmed comfortably
+  feasible. At the start of this version's work, the same question had a
+  hard "no": the Endless Rite's 0% win rate made the path structurally
+  impossible at any mission count.
+- Two self-caught math errors during the darkness/tithe work, corrected
+  before shipping rather than glossed over: an initial "33 missions" claim
+  was wrong (real answer: 23), traced to the test simulator applying the
+  darkness rise before that mission's own tithe reduction, backwards from
+  the real game's order. A wave-counter reset bug and a stale-test-file bug
+  (a cached script missing the latest formula produced a bogus 5% reading
+  contradicted by a 12/12-win manual trace) were also caught mid-session.
+- Full combat sanity sweep across all 6 mission types x 4 tiers shows no
+  crashes.
+
+### Known Issues (carried into [Unreleased])
+- T2's Temple chain step tuning is noisier than the others (a repeat run at
+  identical settings showed 72.0% vs. an earlier 82.0%) -- true value likely
+  somewhere in the low-to-high 70s, not pinned down further.
+- Region-reclass mutation consolidation (Snare→Slow) still deferred.
+- Capstone/Arena Bout boss stat rework still deferred.
+- Elysium Hunt and Agora Toll still use the original, more aggressive
+  templerite-tier wave formula -- not brought in line with Temple's gentler
+  treatment in this pass.
+
+---
+
 ## [v2.1.2] — Enemy Pathfinding + Stat-Math Bug Fixes + Full Boss Stat Model Rewrite (Significant)
 
 ### Fixed — Critical
