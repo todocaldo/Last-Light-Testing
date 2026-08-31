@@ -454,6 +454,97 @@ for full narrative detail on each sub-decision.
 
 ---
 
+## [v2.1.4] — Arena Chain Rework, Exhibition Match, Critical Squad-Generation Bug Fix + Full Re-Tune of All 6 Core Mission Types (Significant)
+
+### Added — Significant
+- **Arena chain rework**: the 4 regular Arena missions redesigned from the
+  old survive-N-rounds + mid-fight-elite mechanic to a hold-to-ignite +
+  fixed-total-wave-count structure. 3 static starting enemies, hold a
+  center-map point for 1 round to "ignite," then a fixed wave count
+  (4/5/6/7 across steps 1-4) instead of an open-ended survival timer. A
+  critical soft-lock bug was found and fixed during this work -- the
+  wave-eligibility ceiling (borrowed from Temple's pattern, round<=20)
+  silently blocked the fixed wave count from ever completing past round
+  20, meaning a long fight could become permanently unwinnable in real
+  play, not just a rare test artifact. Tuned against a 90/85/80/75%
+  target curve per step.
+- **Exhibition Match**: a new standalone feature -- a solo 1v2 sparring
+  bout that levels a single low-level recruit without spending a day (no
+  upkeep, tithe, or darkness tick). Cost scales with the recruit's own
+  veteran level. Losing risks a real wound (the existing recoverable
+  stat-penalty system) but never the more severe injury/permadeath system
+  -- verified via direct trace showing `recruitInjuries:0` across every
+  test trial, confirming recruits are floored at 1 HP instead of ever
+  reaching the fallen/injury-roll pathway. Missions-survived credit
+  requires an actual win, not just survival, since guaranteed survival
+  would otherwise make winning irrelevant for leveling purposes. UI entry
+  point lives on the Arena page itself, a two-step flow (button, then a
+  recruit picker), not on individual recruit cards.
+
+### Fixed — Critical
+- **Every mission-type balance number produced earlier this session (Boss
+  Hunt, Stalk, Purge, Defense, Explore, Relic) was invalidated by a
+  test-harness bug and has been re-tuned from scratch.** The reusable
+  trial-runner functions were calling `genRecruit(squadTier)` and then
+  separately applying the full `levelUpRecruit()` progression on top --
+  double-counting the tier bonus, since `genRecruit`'s own `bonus`
+  parameter already adds directly to ATK/DEF/HP independent of leveling.
+  Concretely: a "Lv4" test squad was carrying roughly +3-4 ATK, +2-8 DEF,
+  and +13 HP more than a correctly-generated Lv4 recruit should have.
+  Caught directly from a report that a traced T4 Relic squad "looked too
+  strong" for its stated level, which prompted checking the actual
+  generation code and confirmed it immediately. Fixed in both
+  `runTrialWithMission` and `runTrialWithStallDetection`; `runReclaimTrial`
+  already used the correct pattern, so the earlier Temple/Arena/Exhibition
+  Match work was unaffected and did not need re-verification.
+
+### Changed — Significant
+- **Full re-tune of all 6 core mission types**, against the corrected
+  squad generation, targeting a flat 85-90% win rate at every tier (a
+  deliberate revision from the earlier declining 85/75/65/55 curve).
+  Every mission type required real, substantive rework once retested, not
+  minor touch-ups -- the scale of correction varied hugely: Relic T4's
+  wave size dropped from 12 to 4; Boss Hunt T4's minion count dropped
+  from 9 to 3; Explore's entire per-tier wave curve had to be rebuilt.
+  Confirmed directly during this pass: the earlier "T4 is uniquely
+  resistant, likely needs tier-depth stat scaling" investigation was
+  itself chasing a symptom of the squad-generation bug -- once retested
+  with correct squads, T4 responded to ordinary tuning like any other
+  tier and needed no special scaling mechanism.
+  - Boss Hunt: minion count `[2,2,8,3]`, boss dampener
+    `[1.08,0.80,1,0.92]`.
+  - Stalk: elite dampener `[0.65,0.30,0.49,0.42]`.
+  - Purge: enemy count `[2,3,7,7]`, wave size `[3,3,null,null]`.
+  - Defense: enemy count `[5,6,8,8]` (T1 fixed at 5, rounds fixed at
+    `[4,5,6,7]` per explicit design constraint), wave size
+    `[2,2,2,null]`.
+  - Explore: enemy count `[3,2,5,4]`, wave size `[2,3,3,2]`, cadence
+    `[2,3,3,2]`.
+  - Relic: enemy count `[1,1,3,3]`, cadence `[2,2,2,2]`, wave size
+    `[2,1,5,4]`.
+
+### Verified
+- Every mission type's final settings landed within a consistent, modest
+  band of target (typically within 5-10 points), with real, honestly
+  reported volatility on specific tiers (Boss Hunt T2/T3, Defense across
+  the board, Stalk T4) that repeated re-testing could not fully resolve --
+  documented rather than papered over with a single favorable reading.
+- Full combat sanity sweep after every individual mission type's re-tune,
+  all clean, no crashes. Final full combat sanity sweep across all 6
+  mission types x 4 tiers on the truly final packaged file, clean.
+
+### Known Issues (carried into [Unreleased])
+- Boss Hunt T3 and Defense (all tiers) showed the most persistent
+  volatility during re-tuning -- settings are within a reasonable band
+  but not as tightly locked as other mission types.
+- Region-reclass mutation consolidation (Snare→Slow, remaining retags)
+  still deferred.
+- Elysium Hunt and Agora Toll still use the original, more aggressive
+  templerite-tier wave formula -- never brought in line with Temple's or
+  Arena's gentler treatment.
+
+---
+
 ## [v2.1.3] — Temple Region Rework: Darkness/Tithe, Chain Rebalance, The Endless Rite, Unlock Condition (Significant)
 
 ### Changed — Significant
