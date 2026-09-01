@@ -20,6 +20,95 @@ _Nothing staged yet._
 
 ---
 
+## [v2.1.5] — Full Re-Verification of All 6 Core Mission Types + Reward-Multiplier Recalibration (Significant)
+
+### Fixed — Critical
+- **Boss Hunt, Stalk, Defense, and Explore's T4 tiers re-tuned** against
+  the correctly-capped (`MAX_VETERAN_LEVEL=3`) squad, closing out the
+  Known Issue carried from v2.1.4. Purge and Relic's T4 were already fine
+  and untouched by this specific fix.
+
+### Changed — Significant
+- **Full re-verification and re-tune of all 6 core mission types**, from
+  a fresh N=100-150 baseline rather than trusting v2.1.4's "T1-T3 verified
+  and trustworthy" claim at face value. That claim did not hold up: the
+  fresh baseline found T3 in the high teens to low 40s for every single
+  type, and T1/T2 inconsistent (35-84%) -- nowhere near the flat 85-90%
+  target. Given this project's history of balance numbers being
+  invalidated after the fact, everything was re-measured from scratch
+  before any constant was touched.
+- Two false leads investigated and ruled out first: (1) hypothesized the
+  Lv2 ability (unlocked at T3's squad level, before Lv3 specialization)
+  was hurting win rate via a targeting gap -- a controlled ablation test
+  (T3 Defense, ability forced off vs on) showed the opposite, disabling
+  it made things worse (15.0% -> 2.5%), ruling this out before tuning
+  around a phantom bug. (2) Confirmed a real, cross-cutting AI-turn-stall
+  issue (guard-limit hits with the round counter still advancing, not a
+  hard freeze) hitting unpredictable tiers/types at ~3-8% incidence where
+  sampled directly -- broader than the previously-known "rare T1 Boss
+  Hunt AI stall." Logged as an open item, not fixed this pass. Also
+  established a real +-5-8 percentage point combat-RNG noise floor at
+  N=150 on fully unchanged constants, informing how hard to chase
+  precision in the tuning that followed.
+- Final settings, all 6 types:
+  - Defense: `85.0/93.0/90.0/87.0%`. Enemy count `[5,4,5,8]` (was
+    `[5,6,8,8]`), wave size `[1,1,1,null]` (was `[2,2,2,null]`). T1's
+    "count fixed at 5" constraint explicitly lifted this pass per
+    direction -- wave size and count are both levers now, only
+    `DEFENSE_ROUNDS` stays fixed.
+  - Boss Hunt: `95.3/92.7/82.7/91.3%`. Minion count `[2,2,5,3]` (was
+    `[2,2,8,3]`), boss dampener `[0.90,0.60,0.10,0.90]` (was
+    `[1.08,0.80,1,0.92]`).
+  - Purge: `81.3/84.0/92.7/86.7%`. Enemy count `[2,2,3,7]` (was
+    `[2,3,7,7]`), wave size `[2,2,null,null]` (was `[3,3,null,null]`).
+  - Relic: `88.8/82.5/86.3/83.8%`. Enemy count `[1,1,2,3]` (was
+    `[1,1,3,3]`), cadence `[3,3,3,2]` (was `[2,2,2,2]`), wave size
+    `[1,1,2,4]` (was `[2,1,5,4]`). Wave-size cuts alone barely moved win
+    rate; cadence turned out to be the dominant lever, since the
+    claim-then-return-to-entrance requirement exposes the squad to many
+    wave cycles regardless of per-wave size.
+  - Explore: `94.0/93.3/91.3/92.7%`. Enemy count `[3,2,3,4]` (was
+    `[3,2,5,4]`), wave size `[2,2,2,2]` (was `[2,3,3,2]`), cadence
+    `[3,3,3,2]` (was `[2,3,3,2]`). Wave cadence confirmed as the dominant
+    lever for T1 specifically -- reverting cadence alone (with count/wave
+    already cut) snapped T1 right back to its 51% baseline.
+  - Stalk: `90.7/86.7/88.7/86.7%`. Elite dampener
+    `[0.42,0.20,0.22,0.32]` (was `[0.65,0.30,0.49,0.42]`); enemy count
+    unchanged.
+- **`REWARD_MULTIPLIER` recalibrated to flat 1.0 across all six types**
+  (was `{defense:1.0, explore:1.0, bosshunt:1.00, purge:1.15,
+  relic:1.10, stalk:1.0}`). Recomputed via the existing
+  `sqrt(defenseRate/typeRate)` formula against the fresh post-retune
+  per-type averages (Defense 88.75%, Boss Hunt 90.5%, Purge 86.17%,
+  Relic 85.35%, Explore 92.83%, Stalk 88.2%): every value landed within
+  0.978-1.020 of 1.0, indistinguishable from flat given this pass's own
+  established noise floor. The old values were calibrated against
+  pre-retune win rates (some dating to v2.0.1) that no longer describe
+  the game -- with difficulty now deliberately flat by design, there's
+  nothing left for a win-rate-based multiplier to compensate for.
+
+### Verified
+- Full combat sanity sweep across all 6 mission types x 4 tiers after
+  the complete pass, no crashes.
+
+### Known Issues (carried into [Unreleased])
+- **Cross-cutting AI-turn stall**, both a generic form (guard-limit hit,
+  round counter still advancing, ~3-8% incidence sampled directly across
+  Defense/Boss Hunt) and a substantially more severe variant specific to
+  Relic's extraction march (occasional 100+ round fights before
+  resolving -- not tier-specific, not introduced by this pass, reproduced
+  in pre-tuning data too, e.g. the old Relic T4 baseline's 53-round
+  average). Neither investigated to a code fix this pass.
+- Temple/Arena's `90/85/80/75` chain target still not reconciled with
+  the core-6's flat `85-95` target.
+- Elysium Hunt and Agora Toll still use the original, more aggressive
+  `templerite`-tier wave formula -- never brought in line with Temple's
+  or Arena's gentler treatment.
+- Region-reclass mutation consolidation (Snare→Slow, remaining retags)
+  still deferred.
+
+---
+
 ## [v2.0.47] — Stage 0: Knockback + Leap Engine Primitives
 
 ### Added — Minor
@@ -534,6 +623,25 @@ for full narrative detail on each sub-decision.
   mission types x 4 tiers on the truly final packaged file, clean.
 
 ### Known Issues (carried into [Unreleased])
+- **Found immediately after this version's balance work was believed
+  complete, while preparing session handoff documentation**: a second
+  squad-generation bug, separate from the one this version's own Fixed
+  section describes. Every T4 test this entire session used an uncapped
+  `squadVetLevel=4`, but `MAX_VETERAN_LEVEL=3` -- the real game's actual
+  maximum. Every T4 balance number shipped in this version was tested
+  against an impossible, over-leveled squad. Confirmed directly: a
+  "level 4" test recruit carried ATK 11 / HP 32 versus the real level-3
+  maximum of ATK 8 / HP 24. Re-tested against the correctly-capped
+  squad: Boss Hunt T4 (81%) and Stalk T4 (77%) now read as too hard;
+  Defense T4 (93%) and Explore T4 (92%) now read as too easy; Purge T4
+  (85%) and Relic T4 (87%) happen to still be in range. **Boss Hunt,
+  Stalk, Defense, and Explore's T4 tiers need re-tuning before the next
+  version ships** -- this version's shipped T4 numbers for those four
+  mission types should not be trusted. Fixed defensively in the test
+  harness (`runTrialWithMission`/`runTrialWithStallDetection`/
+  `runReclaimTrial` now cap `squadVetLevel` internally, so this specific
+  mistake can't recur), but the affected constants themselves are
+  unchanged pending re-tuning.
 - Boss Hunt T3 and Defense (all tiers) showed the most persistent
   volatility during re-tuning -- settings are within a reasonable band
   but not as tightly locked as other mission types.
