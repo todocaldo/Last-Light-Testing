@@ -20,6 +20,91 @@ _Nothing staged yet._
 
 ---
 
+## [v2.1.6] — Elysium/Agora Full Re-Tune + All 4 Endless-X Bosses Retargeted to 50-60% (Significant)
+
+### Fixed — Critical
+- **Elysium's entire chain (`packhunt` type) and both regions' Endless-X
+  bosses (`elysiumhunt`, `agoratoll`) had never received the gentler
+  wave-cadence/cap treatment Temple got in v2.1.2** -- still on the
+  original aggressive "every 2 rounds, escalating size, no cap" formula.
+  Agora's own regular chain (`traderoute`) had inherited the fix
+  automatically (shares Temple's `isCleanseType` gating), which is why
+  Agora looked mostly fine while Elysium was catastrophic -- this was a
+  real, previously-undiagnosed gap, not just stale tuning numbers. Fresh
+  N=30 baseline before any fix: Agora chain 80-100%, Elysium chain
+  10-93% (steps 3/4 in the 10-13% range), Agora's Endless Toll 6.7%,
+  Elysium's Endless Hunt 0.0%. Extended the same cadence-every-3-rounds/
+  capped-total-waves rule to `packhunt`/`elysiumhunt`/`agoratoll` (new
+  constants: `PACKHUNT_WAVE_SIZE`/`CAP`, `ELYSIUMHUNT_WAVE_SIZE`/`CAP`,
+  `AGORATOLL_WAVE_SIZE`/`CAP`, all `2`/`4` to start). This single change
+  alone brought Elysium's chain from 10-73% up to 80-100% before any
+  other tuning, and Agora's Endless Toll from 6.7% to 36.7%.
+
+### Changed — Significant
+- **Elysium/Agora chain re-tune** (target `90/85/80/75`, matching
+  Temple/Arena's existing curve): Agora enemy count `[3,3,3,2]` (was
+  `[4,4,2,1]`); Elysium enemy count `[12,13,8,6]` (was `[12,13,11,9]`).
+  Final (N=30): Agora `93.3/76.7/73.3/83.3%`, Elysium
+  `96.7/80.0/90.0/86.7%`.
+- **All 4 regions' Endless-X bosses retargeted to a consistent 50-60%
+  win rate** (previously wildly inconsistent: Temple 43.3% after its
+  v2.1.2 fix, Arena ~3.3% -- apparently never actually revised despite
+  that fix implying siblings would follow -- Agora/Elysium wherever the
+  structural fix above happened to leave them).
+  - Added a per-region dampener to the shared `spawnRiteBoss()` function
+    used by `templerite`/`agoratoll`/`elysiumhunt`: new
+    `RITE_BOSS_MULT = {templerite:0.85, agoratoll:0.65, elysiumhunt:0.15}`.
+    Elysium's boss stayed broken even after the wave fix despite an
+    identical undampened base formula to the other two -- needed its
+    own lever.
+  - **Arena's Endless Bout required real investigation, not just a
+    dampener value.** It's architecturally distinct from the other 3:
+    spawns at deployment via the old apex/capstone formula (not
+    `spawnRiteBoss`'s mid-battle holder pattern), and carries its own
+    3-now-2-phase revival mechanic (`phasesRemaining` in
+    `resolveEnemyDeath`) where every non-final "death" fully heals the
+    boss AND multiplies its ATK by `1.15x`. Dampening the boss's own
+    stats had sharply diminishing returns -- a 25x reduction
+    (`0.55`->`0.02`) only moved win rate from ~5% to ~32%. Traced the
+    real bottleneck to Arena Bout's regular reinforcement waves, which
+    had never been given a wave-*size* lever at all (only cadence/cap)
+    and were falling through to the fully uncapped generic escalating
+    formula -- up to 3 enemies/wave across 4 waves, 12 extra regular
+    enemies on top of the phase-revival boss itself. Capping this at a
+    flat 1/wave alone jumped win rate to 82.5%; a boss dampener (new
+    `ARENABOUT_MULT = 0.95`) then brought it back down into range. The
+    `phases:2` setting itself is a documented v2.0.3 design decision
+    (kept over `phases:1` for flavor at equal balance) and was **not**
+    touched.
+  - Final Endless-X boss win rates (N=80): Temple `45.0%`, Arena
+    `57.5%`, Agora `56.3%`, Elysium `48.8%` -- all four now cluster in a
+    consistent, narrow band around the 50-60% target, versus the
+    previous 3.3-43.3% spread across wildly different, mostly-
+    unintentional values.
+
+### Verified
+- Full combat sanity sweep across the core 6 mission types after this
+  pass, no regressions (none of this session's changes touch core-6
+  code paths).
+- Resolved an apparent "4th outcome category" in reclaim-trial test
+  diagnostics (trials landing in `screen==='result'` matching neither
+  `win`, `squadWiped`, nor `hitGuardLimit`): traced to the game's own
+  `INJURY_CHANCE` revival mechanic in `endBattle()` -- a "fallen"
+  recruit can be pulled back to 1 HP alive with an injury after the
+  wipe check already ran, which threw off post-hoc wipe/guard-hit
+  classification in test diagnostics but never affected the actual
+  win/loss result itself. Confirmed as intended game behavior, not a
+  bug.
+
+### Known Issues (carried into [Unreleased])
+- The cross-cutting AI-turn stall (both the core-6's generic form and
+  Relic's more severe extraction-march variant) remains uninvestigated.
+- Elysium's Endless Hunt still shows an occasional severe round-count
+  outlier (one N=80 read averaged 262.3 rounds) -- likely the same
+  drag-artifact category as Relic's, not chased down this pass.
+
+---
+
 ## [v2.1.5] — Full Re-Verification of All 6 Core Mission Types + Reward-Multiplier Recalibration (Significant)
 
 ### Fixed — Critical
