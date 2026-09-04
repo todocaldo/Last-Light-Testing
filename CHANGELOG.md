@@ -20,6 +20,131 @@ _Nothing staged yet._
 
 ---
 
+## [v2.1.8] — Buff/Debuff Fixes, Ranged-Attack Telegraph, Pay-Tithe-Early, Anti-Stall Mechanic (Significant)
+
+### Fixed
+- **`applyTempMod()`** — the single shared function every class ability and
+  specialization skill (buff or debuff alike) routes through — had two
+  real problems, reported directly. (1) No stacking prevention: reapplying
+  a mod on the same stat compounded on top of the existing one rather than
+  refreshing (two -75% debuffs became -150%, not -75%). (2) No
+  negative-stat floor anywhere, not on apply or on `revertTempMods`'s
+  reversal. Both fixed: a new application on an already-modified stat now
+  reverts the existing mod first, then applies fresh (replace, not
+  stack); the result is floored at 0 (or 1 for `move`/`init`
+  specifically, since 0 would softlock a unit out of ever acting again).
+  Tracks the *actual* applied delta (post-clamp) for reversal, not the
+  raw requested amount, so `revertTempMods` always exactly undoes what
+  was visible rather than over/under-correcting when a clamp kicked in.
+  Verified via 4 targeted unit tests plus a full core-6 sanity sweep, no
+  regressions.
+
+### Added
+- **Ranged-attack telegraph.** Any enemy attack (plain or ability) with
+  effective range >1 now highlights its target tile(s) — a pulsing red
+  outline — before resolving, held for the same duration as the existing
+  between-actions pause. For AoE abilities (e.g. Spitter's Acid Rain),
+  the highlight covers the full affected area, not just the center.
+  Melee is untouched — adjacency already makes those visually obvious.
+  Verified via 15 real trials: 101 telegraph events, 94 single-target + 7
+  AoE, both paths firing correctly.
+- **Pay-tithe-early.** New `payTitheEarly()`, distinct from
+  `processTithe()` (the automatic per-mission tick). Same cost as a
+  normal payment; pulls the next tithe forward to a fresh 3-mission
+  cycle rather than stacking a bonus payment on top of the existing
+  schedule — lets a gold-rich, darkness-tight player choose *when*
+  within a cycle to spend the gold without changing total
+  tithes-per-game, preserving the "guaranteed eventual doom" pacing
+  `DARKNESS_PER_TITHE` was tuned to protect. Gated on `titheDue<3`
+  (blocks same-cycle spam) and sufficient gold. UI: a button in the
+  existing tithe tag's expandable panel. Verified via 5 targeted test
+  scenarios plus a render-path smoke test.
+- **Anti-stall mechanic.** Reported directly: post-retune, fights become
+  trivial to turtle-and-heal once down to one enemy with no more waves
+  incoming — `healUnit()` has never had a cooldown or cap, and most
+  mission types have no round limit and no per-round cost. `startNewRound()`
+  now tracks a "1 enemy alive, no more regular waves possible" state
+  (reusing the exact locals the existing wave-check already computes).
+  2-round grace period, then a reinforcement spawns via the same
+  `enemyPool`/tier-scaling every normal wave uses. Escalates per
+  stall-*cycle*, not per round: first reinforcement is 1 enemy, then 2,
+  then 3, etc. if the player keeps stalling — confirmed via direct
+  testing (forced-stall scenario, 4 consecutive cycles: +1/+2/+3/+4,
+  exact 2-round grace confirmed each time).
+
+### Verified
+- Investigated a fresh sanity-sweep outlier before shipping (Temple's
+  Endless Rite, 459 avg rounds at N=15) rather than assuming it was
+  caused by the new anti-stall mechanic. Isolated via before/after
+  correlation: a larger N=40 sample showed anti-stall fires ~20% of the
+  time on this encounter with a modest, proportionate round increase
+  (25.6 avg when fired vs 13.2 when not) — nothing close to 459 in
+  either direction. Concluded the outlier was very likely a coincidental
+  hit of the already-known, already-logged generic AI-turn-stall issue,
+  not something this pass introduced.
+- Full combat sanity sweep across the core 6 mission types and 7
+  reclaim-region samples (including 2 Endless-X bosses) after the
+  complete pass, no regressions beyond the investigated outlier above.
+
+---
+
+## [v2.1.7] — UI/Text Bug-Fix Pass: Stale Labels, Agora Route Placement, Arena Chain Dead Code (Minor)
+
+### Fixed
+- **Temple's Territory Overview card still read "Missions with
+  Healer/Caster: X/100"** -- leftover from before the v2.1.4 unlock-
+  condition redesign to darkness-reduced-via-tithe, apparently never
+  actually updated despite that changelog entry's claim. Corrected to
+  "Darkness held back via tithe", matching the wording Temple's own
+  detail page already used correctly.
+- **Agora's `traderoute` objective nodes (`placeRouteNodes()`) were
+  spawning right next to the entry area instead of "far across the
+  map"** -- a real gameplay bug, reported directly. Root cause was
+  two-fold: (1) node spacing (`floor(min(GW,GH)/(count+1))` = 3 tiles)
+  never referenced `MISSION_TARGET_MIN_DIST=5`, the floor every other
+  objective-based mission type enforces; (2) direction was chosen from
+  all 8 compass directions uniformly, but the spawn zone always sits on
+  one map edge, so half those directions pointed back off-grid toward
+  that same edge, snapping nodes right back next to spawn regardless of
+  the spacing fix. Both fixed: nodes now spread from the same 5-tile
+  floor out to 10 tiles, biased away from the spawn's actual edge (same
+  fix pattern `oppositeEdgePoint()` already used for wave spawning).
+  Verified via 10 sample deployments (consistent ~4-9 tile spread, was
+  1-3) and a fresh harness run (step 1 holds at 90%, no regression).
+- **`TYPE_LABELS` and `MISSION_OBJECTIVE_TEXT` only ever covered the
+  original core-6 mission types** -- reported via screenshot.
+  `TYPE_LABELS` didn't even have entries for `cleanse`/`templerite`,
+  meaning every Temple battle has likely shown "UNDEFINED" in its header
+  tag this whole time, not just Agora. `MISSION_OBJECTIVE_TEXT` was
+  missing all of Agora/Elysium/Arena/Exhibition. Filled in all 9 missing
+  entries (`cleanse`, `templerite`, `traderoute`, `agoratoll`,
+  `packhunt`, `elysiumhunt`, `trial`, `arenabout`, `exhibition`) in both
+  lookup tables -- all 15 mission types now confirmed covered (verified
+  programmatically, zero gaps).
+- **Arena chain steps 2-4 dead code and stale documentation.** Asked
+  whether steps 2-4 should mechanically match step 1's ignite+fixed-
+  wave-count system -- they already did. Every `ARENA_CHAIN` entry has
+  had `totalWaves` set for some time, and every check in the file gates
+  on that generically, not per-step. Traced the confusion to a stale
+  comment claiming "steps 2-4 stay on the old survive-N-rounds
+  mechanic" (never updated after they were actually migrated) plus a
+  genuinely dead/unreachable code branch in `genArenaMission` still
+  implementing that old mechanic. That same stale comment had fed
+  directly into this session's own `MISSION_OBJECTIVE_TEXT['trial']`
+  entry, which incorrectly hedged between two mechanics. Removed the
+  dead branch, corrected both stale comments, and corrected the
+  objective text to describe the one real (and already-shared)
+  mechanic. Verified no regression via harness (step 2: 83.3%, in
+  range).
+
+### Verified
+- Full combat sanity sweep across the core 6 mission types and 6
+  reclaim-region step samples after this pass, no regressions --
+  expected, since every change this pass was UI text or objective
+  placement, not combat balance.
+
+---
+
 ## [v2.1.6] — Elysium/Agora Full Re-Tune + All 4 Endless-X Bosses Retargeted to 50-60% (Significant)
 
 ### Fixed — Critical
