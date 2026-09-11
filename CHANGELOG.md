@@ -20,6 +20,63 @@ _Nothing staged yet._
 
 ---
 
+## [v2.1.9] — Agora Info Tips, Victory Screen Redirect, Tap-on-Unit Action Popup (Significant)
+
+### Added
+- **Shadesinger info tip.** The Agora reclass offer previously gave zero
+  mechanical information. New tappable "What does becoming a Shadesinger
+  do?" tag explains Cutting Verse (Lv2) and both Lv3 options (Rousing
+  Chorus, Silver Tongue), plus the training-reset caveat — text generated
+  live via `describeAbility()`/`describeSkill()` rather than hand-written,
+  so it can't drift from the real mechanics.
+- **Tap-on-unit compact action popup.** Reported directly: reaching the
+  action buttons required scrolling past the map to a verbose text-button
+  row below it every turn. A true radial menu was considered first;
+  settled on an anchored rectangular popup instead after discussing the
+  tradeoffs — a rectangle can be edge-clamped by sliding independently on
+  two axes, while a circle dragging its whole ring to stay on-screen was
+  judged too likely to fail near grid corners. Tapping the active unit's
+  own cell (only when no mode is already selected) toggles a compact
+  icon-only popup of Move/Attack/Heal/Cast/Ability/Specialization/End
+  Turn, positioned via CSS grid-relative anchoring and simple x/y
+  threshold clamping against the known grid bounds. The existing detailed
+  bottom panel is unchanged. **Flagged for real-device playtesting** — the
+  on-screen positioning is the one part that can't be fully confirmed
+  headless; the true-radial-menu approach is the agreed fallback if it
+  doesn't hold up.
+
+### Changed
+- **Agora shop UI.** Item purchase previously used a native `<select>`
+  dropdown showing only "Item Name (costG)". Hover tooltips were
+  considered and rejected (mobile-first game, hover doesn't work on
+  touch). Replaced with individual tappable rows per item, each expanding
+  independently to show its stat effect and flavor text, with a directly
+  wired Buy button per row.
+- **Capstone victory screen.** Previously read as a clean, terminal "The
+  End" despite the reclaimed territories offering substantial continued
+  play. Added a line directing the player to the Temple/Arena/Agora/
+  Elysium content (single shared line, not per-patron), and the button
+  (text unchanged) now routes straight to the Reclaimed Territories page
+  instead of the generic Company Hall — `returnToPatron()` gained an
+  optional `page` param (defaults to `'hall'`, every other call site
+  unaffected).
+
+### Fixed (caught during this build, not shipped broken)
+- Twice while building the action popup, an edit replaced a function's
+  opening line without re-including it, orphaning the function body —
+  caught both via syntax check before proceeding.
+- The popup's first version intercepted any tap on the unit's own cell
+  unconditionally, which would have silently broken self-healing
+  (`validHealTargets()` explicitly allows self-targeting). Fixed by only
+  opening the popup when no mode is currently selected; verified directly
+  that self-heal still fires correctly with heal mode active.
+
+### Verified
+- Full combat sanity sweep across the core 6 mission types and 2
+  additional Agora samples after the complete pass, no regressions.
+
+---
+
 ## [v2.1.8] — Buff/Debuff Fixes, Ranged-Attack Telegraph, Pay-Tithe-Early, Anti-Stall Mechanic (Significant)
 
 ### Fixed
