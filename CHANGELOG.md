@@ -20,6 +20,69 @@ _Nothing staged yet._
 
 ---
 
+## [v2.1.10] — Harness Integrity Assertions, Real Squad-Cap Gap Fixed, AI-Turn Stall Root-Caused, Relic Touch-Up (Significant)
+
+### Fixed
+- **A real gap, found while building the assertions below, not by chance**: the
+  defensive `squadVetLevel` cap documented in a prior session's continuation
+  notes as already added to `runTrialWithMission`, `runReclaimTrial`, and
+  `runTrialWithStallDetection` was **not actually present** in any of the
+  three — all three passed `squadVetLevel` straight into `levelUpRecruit()`
+  unclamped. Never manifested as a problem in this project's testing, since
+  every trial run used the safe `squadVetLevel=tier-1` convention, but
+  nothing was actually stopping a future call from reproducing the exact
+  historical Bug #2 (uncapped T4 squad level). Re-added the real clamp to
+  all three functions.
+- **Root-caused the "AI-turn stall"** that's been worked around all session
+  (anti-stall mechanic, averaging over larger N) rather than diagnosed. It
+  wasn't an AI behavior problem at all. Built a full-trace diagnostic
+  (distinct from `runTrialWithStallDetection`, which only catches a
+  *frozen* round number — the actual dominant pattern was rounds advancing
+  normally while the fight just ran abnormally long) and traced it to
+  Relic: the "return to entrance" win check only ever fired reactively, at
+  the exact instant a unit moved onto a spawn tile. If the win condition
+  became true some other way — most concretely, a squad member dying
+  *after* the last living unit had already arrived — nothing ever
+  re-evaluated it, and the mission could sit in an already-won state
+  indefinitely. Reproduced directly (two survivors frozen at spawn for
+  240+ rounds with no death involved; separately, a death arriving right
+  after the last living arrival, stalling at round 147+). Fixed by adding
+  the check to `checkBattleEnd()`, which already runs after every action
+  on both sides. Verified with 3 targeted unit tests (2 negative controls
+  confirming no over-firing) and end-to-end: 180 trials post-fix with zero
+  outliers, versus reliably reproducing one within 40-60 trials every
+  single time before the fix.
+
+### Added
+- **`assertHarnessIntegrity()`** — 5 one-time assertions verifying
+  `genRecruit()`/`levelUpRecruit()` actually produce what their documented
+  formulas say (checked against each recruit's own recorded ingredients,
+  not hand-fixed inputs), that the cap fix above is real, and an
+  integration-level check that `runTrialWithMission` doesn't secretly
+  reintroduce `genRecruit(squadTier)` (the original Bug #1 pattern).
+  Proved the suite has real teeth: deliberately reintroduced both
+  historical bugs one at a time, confirmed each was caught loudly and
+  specifically, then reverted and reconfirmed clean. Call this at the
+  start of any session before trusting any other result from it.
+
+### Changed
+- **Relic tuning touch-up** (direct consequence of the win-check fix):
+  some of what was counted as losses during the original Relic tuning
+  pass were actually the bug above, not real difficulty — post-fix win
+  rates read meaningfully higher than intended (T1/T2 at 92-95%, above
+  the 85-95% band). `RELIC_WAVE_SIZE` T1/T2 bumped `1`->`2`. Note from
+  this pass: `RELIC_WAVE_CADENCE` is an extremely non-linear lever here —
+  dropping T2's cadence by one integer step swung win rate 95%->58%.
+  Wave size gave far finer control for the same tiers.
+  Final (two N=100 runs): T1 93-95%, T2 92-93%, T3 85-91%, T4 86-90%, all
+  within the 85-95% target band.
+
+### Verified
+- Full combat sanity sweep across the core 6 mission types after the
+  complete pass, no regressions.
+
+---
+
 ## [v2.1.9] — Agora Info Tips, Victory Screen Redirect, Tap-on-Unit Action Popup (Significant)
 
 ### Added
