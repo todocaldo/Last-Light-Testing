@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>LAST LIGHT: LEAN v1 (engine v2.2.1)</title>
+<title>LAST LIGHT: LEAN v1 (engine v2.2.2)</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -24,6 +24,25 @@
   beneath this milestone name for ongoing dev tracking -- see below for the
   v2.1.16 changelog entry, with the full v2.1.15 entry this build carries
   forward verbatim underneath it.
+  ===========================================================================
+
+  LAST LIGHT -- v2.2.2
+  Art wiring, Phase 3 of 5 (icons and portraits).
+  - Render code only: ic(key, fallback, size), tic(kind, fallback) and
+    portraitBox() return the old emoji/text/letter unless sprites.js
+    supplies art, so the harness and a page without sprites.js render
+    exactly as before. Seeded run: 480 harness trials identical to v2.2.1.
+  - Pixel icons replace emoji in the action popup and unit-panel buttons,
+    header chips, roster/candidate/battle tags, page headings, buttons,
+    the territory cards and the capstone hint line. Capstone emblems on
+    the Final Trial card and the victory screen. Enemy portraits from
+    sprite frame 0 (capstone boss included); the patron slot shows the
+    patron's capstone emblem until patron portraits are drawn.
+  - Battle Key shows the current battlefield's real tiles (difficult
+    ground, obstacles, high ground, objective, lit/dim/fog).
+  - Compact battle/deploy header shows Day, Gold and Darkness (option b,
+    chosen 2026-10-23); it now really hides the patron group (an inline
+    style had been overriding the v2.0.34 compact rule).
   ===========================================================================
 
   LAST LIGHT -- v2.2.1
@@ -2524,6 +2543,23 @@
   .ll-gridmode button{padding:5px 12px;font-size:11px;min-width:36px}
   .ll-gridmode button.on{background:#2a2010;border-color:var(--ember-dim);color:var(--ember)}
   .ll-gridmode small{flex-basis:100%;font-size:9.5px;letter-spacing:0}
+  /* --- Pixel icons, portraits and Battle Key tiles (v2.2.2, Phase 3). Sizes are whole
+     multiples of the 12px icon art (12/24/48) so they stay crisp on 2x and 3x screens. --- */
+  img.llicon{image-rendering:pixelated;vertical-align:middle;display:inline-block;flex-shrink:0}
+  .tag img.llicon{margin:-2px 3px 0 0}
+  .chip img.llicon,h2 img.llicon,button img.llicon{margin:-6px 6px -4px 0}
+  .territory .ticon img.llicon{margin:0}
+  .victoryscreen .vglyph img.llicon{margin:0 auto}
+  img.lltile{image-rendering:pixelated;vertical-align:middle;margin:-4px 6px -2px 0;border:1px solid var(--line)}
+  .portrait.hasart{background:#0f0d0b}
+  .portrait img.llportrait{image-rendering:pixelated}
+  .portrait.hasart:has(img.boss){border-color:var(--blood)}
+  header.compact-header .battlechips .chip{padding:3px 8px}
+  /* The compact battle/deploy header was meant to hide the patron group (v2.0.34), but
+     the group's inline display:flex overrode it; Day/Gold/Darkness take its place. */
+  header.compact-header .patron-chipgroup{display:none!important}
+  .cell button img.llicon{margin:0;display:block}
+  header.compact-header .battlechips .chip img.llicon{margin:-6px 4px -4px 0}
   @media (max-width:647px){
     body.ll-art header.compact-header .ll-gridmode{display:flex}
     body.ll-art .battlegrid-card{padding-left:0;padding-right:0}
@@ -2536,7 +2572,7 @@
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.2.1)</span></h1>
+      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.2.2)</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
@@ -2572,6 +2608,18 @@ function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
 // its own handler in the browser; in the testing harness it stays a no-op, so combat
 // results can't change. Deaths need no call: the renderer notices alive -> fallen.
 function fx(type, data){}
+// Art wiring Phase 3 (v2.2.2): pixel icons. ic(key, fallback, size) returns the old
+// emoji/text unless sprites.js has installed LL_ICON_HTML, in which case it returns
+// that icon as an <img>. tic(kind, fallback) does the same for the Battle Key's
+// terrain and light tiles. Presentation only -- the harness never renders.
+function ic(key, fallback, size){
+  const html = (typeof LL_ICON_HTML==='function') ? LL_ICON_HTML(key, size||12) : null;
+  return html || fallback;
+}
+function tic(kind, fallback){
+  const html = (typeof LL_TILE_HTML==='function' && G && G.activeMission) ? LL_TILE_HTML(kind, G.activeMission.setting) : null;
+  return html || fallback;
+}
 // Enemy attack pause (v2.2.1, approved 2026-10-23): after each enemy attack or ability
 // the board holds for ENEMY_ANIM_DELAY_MS*3 (~450ms) so its attack strip can be seen.
 // Skipped entirely when the delay is 0 (the harness), so headless timing is unchanged.
@@ -3231,7 +3279,10 @@ function missionsToNextLevel(r){
 // (e.g. PORTRAIT_ART[key]) -- swapping in real images later means changing only
 // this function to return an <img> tag, with no changes needed at any call site.
 function portraitBox(key, label, sizeClass){
-  return `<div class="portrait ${sizeClass}" title="${key}">${label}</div>`;
+  // v2.2.2: art from sprites.js when available (enemy sprite frame 0, capstone boss,
+  // or the patron's capstone emblem until patron portraits are drawn); else the letter.
+  const art = (typeof LL_PORTRAIT_HTML==='function') ? LL_PORTRAIT_HTML(key, sizeClass) : null;
+  return `<div class="portrait ${sizeClass}${art?' hasart':''}" title="${key}">${art||label}</div>`;
 }
 function hpBarColor(hp,maxhp){
   const pct = maxhp>0 ? hp/maxhp : 0;
@@ -6592,24 +6643,24 @@ function healUnit(healer,target){
 function getUnitActionsForPopup(u){
   const b = G.battle;
   const actions = [];
-  actions.push({mode:'move', icon:'👣', title:'Move', disabled: b.hasMoved});
-  actions.push({mode:'attack', icon:'⚔', title:'Attack', disabled: b.hasAttacked || validAttackTargets(u).length===0});
-  if(u.canHeal) actions.push({mode:'heal', icon:'✚', title:'Heal', disabled: b.hasAttacked || validHealTargets(u).length===0});
-  if(u.canCast) actions.push({mode:'cast', icon:'✦', title:'Cast Bolt', disabled: b.hasAttacked || validCastTargets(u).length===0});
+  actions.push({mode:'move', icon:ic('action_move','👣',24), title:'Move', disabled: b.hasMoved});
+  actions.push({mode:'attack', icon:ic('action_attack','⚔',24), title:'Attack', disabled: b.hasAttacked || validAttackTargets(u).length===0});
+  if(u.canHeal) actions.push({mode:'heal', icon:ic('action_heal','✚',24), title:'Heal', disabled: b.hasAttacked || validHealTargets(u).length===0});
+  if(u.canCast) actions.push({mode:'cast', icon:ic('action_cast','✦',24), title:'Cast Bolt', disabled: b.hasAttacked || validCastTargets(u).length===0});
   unitAbilities(u).forEach(a=>{
-    actions.push({mode:a.key, icon:'★', title:a.name, disabled: b.hasAttacked || validAbilityTargets(u,a).length===0});
+    actions.push({mode:a.key, icon:ic('action_ability','★',24), title:a.name, disabled: b.hasAttacked || validAbilityTargets(u,a).length===0});
   });
   const specInfo = unitSpecializationSkillInfo(u);
   if(specInfo){
     if(specInfo.onCooldown){
-      actions.push({mode:null, icon:'✪', title:`${specInfo.skill.name} (cooldown ${specInfo.roundsLeft})`, disabled:true});
+      actions.push({mode:null, icon:ic('action_skill','✪',24), title:`${specInfo.skill.name} (cooldown ${specInfo.roundsLeft})`, disabled:true});
     } else if(specInfo.skill.instant){
-      actions.push({mode:null, instant:specInfo.skill.key, icon:'✪', title:specInfo.skill.name, disabled: b.hasAttacked});
+      actions.push({mode:null, instant:specInfo.skill.key, icon:ic('action_skill','✪',24), title:specInfo.skill.name, disabled: b.hasAttacked});
     } else {
-      actions.push({mode:specInfo.skill.key, icon:'✪', title:specInfo.skill.name, disabled: b.hasAttacked || validSkillTargets(u,specInfo.skill).length===0});
+      actions.push({mode:specInfo.skill.key, icon:ic('action_skill','✪',24), title:specInfo.skill.name, disabled: b.hasAttacked || validSkillTargets(u,specInfo.skill).length===0});
     }
   }
-  actions.push({mode:null, endTurn:true, icon:'⏭', title:'End Turn', disabled:false});
+  actions.push({mode:null, endTurn:true, icon:ic('action_end_turn','⏭',24), title:'End Turn', disabled:false});
   return actions;
 }
 function battleCellClick(x,y){
@@ -7186,23 +7237,28 @@ function render(){
     document.getElementById('statChips').innerHTML = `
       <div class="patron-chipgroup" style="display:flex;align-items:center;gap:10px">
         ${portraitBox(G.patron.key, G.patron.name[0], 'portrait-lg')}
-        <div class="chipgroup"><div class="chip">🎖 <b>${G.patron.name}</b></div></div>
+        <div class="chipgroup"><div class="chip">${ic('header_patron','🎖',24)} <b>${G.patron.name}</b></div></div>
+      </div>
+      <div class="chipgroup battlechips">
+        <div class="chip">${ic('header_day','🕯',24)} Day <b>${G.day}</b></div>
+        <div class="chip">${ic('header_gold','💰',24)} <b>${G.gold}</b></div>
+        <div class="chip">${ic('header_darkness','🌑',24)} <b>${Math.round(G.darknessMeter||0)}</b>/${DARKNESS_MAX}</div>
       </div>`;
   } else {
-  const dayTag = tappableTag('stat-day', `🕯 Day <b>${G.day}</b>`, 'Advances with every mission attempt (win or lose), or by using "Advance Day" to pay retainers without embarking.');
-  const goldTag = tappableTag('stat-gold', `💰 <b>${G.gold}</b> gold`, 'Your treasury. Spent hiring recruits, paying daily upkeep, paying the tithe, and expanding the Barracks.');
-  const upkeepTag = tappableTag('stat-upkeep', `🪙 <b>${totalDailyFee()}</b>/day upkeep`, "A daily cost for every recruit in your active roster, scaling with their tier and veteran level. Charged automatically every mission attempt, win or lose.");
+  const dayTag = tappableTag('stat-day', `${ic('header_day','🕯',24)} Day <b>${G.day}</b>`, 'Advances with every mission attempt (win or lose), or by using "Advance Day" to pay retainers without embarking.');
+  const goldTag = tappableTag('stat-gold', `${ic('header_gold','💰',24)} <b>${G.gold}</b> gold`, 'Your treasury. Spent hiring recruits, paying daily upkeep, paying the tithe, and expanding the Barracks.');
+  const upkeepTag = tappableTag('stat-upkeep', `${ic('header_upkeep','🪙',24)} <b>${totalDailyFee()}</b>/day upkeep`, "A daily cost for every recruit in your active roster, scaling with their tier and veteran level. Charged automatically every mission attempt, win or lose.");
   const titheEarlyEligible = G.titheDue<3;
   const titheEarlyAffordable = G.gold>=titheAmount();
   const titheEarlyButton = titheEarlyEligible
     ? `<div style="margin-top:6px"><button class="primary" style="font-size:0.85em;padding:4px 10px" onclick="payTitheEarly()" ${titheEarlyAffordable?'':'disabled'}>Pay Tithe Early (${titheAmount()} gold)</button>${titheEarlyAffordable?'':' <small class="hint">Not enough gold.</small>'}</div>`
     : `<div style="margin-top:6px"><small class="hint">Already paid this cycle -- available again once at least one mission has passed.</small></div>`;
-  const titheTag = tappableTag('stat-tithe', `🏛 Tithe (<b>${titheAmount()}</b> gold) due in <b>${G.titheDue}</b> mission${G.titheDue===1?'':'s'}`, `A recurring payment due every 3 missions to keep the Beacon fed. Miss it, and the Darkness meter surges hard instead of creeping.${titheEarlyButton}`);
-  const darkTag = tappableTag('stat-darkness', `🌑 Darkness <b>${Math.round(G.darknessMeter||0)}</b>/${DARKNESS_MAX}<span class="darkmeter-track"><span class="darkmeter-fill" style="width:${Math.min(100,Math.round(100*(G.darknessMeter||0)/DARKNESS_MAX))}%"></span></span>`, 'Rises with every mission attempted, regardless of outcome. The only way to push it back is paying the tithe. Filling ends the campaign outright.');
+  const titheTag = tappableTag('stat-tithe', `${ic('header_tithe','🏛',24)} Tithe (<b>${titheAmount()}</b> gold) due in <b>${G.titheDue}</b> mission${G.titheDue===1?'':'s'}`, `A recurring payment due every 3 missions to keep the Beacon fed. Miss it, and the Darkness meter surges hard instead of creeping.${titheEarlyButton}`);
+  const darkTag = tappableTag('stat-darkness', `${ic('header_darkness','🌑',24)} Darkness <b>${Math.round(G.darknessMeter||0)}</b>/${DARKNESS_MAX}<span class="darkmeter-track"><span class="darkmeter-fill" style="width:${Math.min(100,Math.round(100*(G.darknessMeter||0)/DARKNESS_MAX))}%"></span></span>`, 'Rises with every mission attempted, regardless of outcome. The only way to push it back is paying the tithe. Filling ends the campaign outright.');
   document.getElementById('statChips').innerHTML=`
     ${portraitBox(G.patron.key, G.patron.name[0], 'portrait-lg')}
     <div class="chipgroup">
-      <div class="chip">🎖 <b>${G.patron.name}</b></div>
+      <div class="chip">${ic('header_patron','🎖',24)} <b>${G.patron.name}</b></div>
       <div class="chip">${dayTag.tagHtml}</div>
     </div>
     ${dayTag.panelHtml}
@@ -7215,13 +7271,13 @@ function render(){
     ${goldTag.panelHtml}${upkeepTag.panelHtml}${titheTag.panelHtml}
     <div class="chipdivider"></div>
     <div class="chipgroup">
-      <div class="chip">⚑ Darkness Removed <b>${G.templeDarknessReduced||0}</b> — ${tierName(rt)}${nextLabel}</div>
+      <div class="chip">${ic('header_dark_removed','⚑',24)} Darkness Removed <b>${G.templeDarknessReduced||0}</b> — ${tierName(rt)}${nextLabel}</div>
       <div class="chip">${darkTag.tagHtml}</div>
     </div>
     ${darkTag.panelHtml}
     <div class="chipdivider"></div>
     <div class="chipgroup">
-      <div class="chip">👥 <b>${G.roster.length}</b> in roster</div>
+      <div class="chip">${ic('header_roster','👥',24)} <b>${G.roster.length}</b> in roster</div>
     </div>`;
   }
   if(G.screen==='patron') renderPatron();
@@ -7377,7 +7433,7 @@ function renderHallOfFame(){
   }).join('');
   el.innerHTML = `
     <div class="card">
-      <h2>🏆 Hall of Fame</h2>
+      <h2>${ic('page_hall_of_fame','🏆',24)} Hall of Fame</h2>
       <small class="hint">Every recruit who's ever served — active, retired, or fallen. Top 5 in each category.</small>
       <button onclick="closeHallOfFame()" style="margin-top:10px">← Back</button>
     </div>
@@ -7424,7 +7480,7 @@ function renderVictory(){
   const {html:trainingHtml, count:pendingCount} = renderPendingTrainingChoices();
   el.innerHTML = `
     <div class="card victoryscreen">
-      <div class="vglyph">${flavor.glyph}</div>
+      <div class="vglyph">${ic('capstone_'+G.patron.key, flavor.glyph, 48)}</div>
       <h2>${flavor.name} — Fallen</h2>
       <p><b style="color:var(--ember)">THE LIGHT HOLDS</b></p>
       <p>${flavor.desc}</p>
@@ -7489,13 +7545,13 @@ function buildCapstoneHtml(){
   // button once G.hasWon is true.
   if(G.hasWon) return `
     <div class="card victoryscreen" style="text-align:left;padding:16px">
-      <h2 style="color:var(--ember)">${flavor.glyph} ${flavor.name}</h2>
+      <h2 style="color:var(--ember)">${ic('capstone_'+G.patron.key, flavor.glyph, 24)} ${flavor.name}</h2>
       <p><b style="color:var(--ember)">THE LIGHT HOLDS</b></p>
       <p class="hint">${flavor.bossName} has already fallen to your company. The trial does not come twice.</p>
     </div>`;
   return cs.ready ? `
     <div class="card victoryscreen" style="text-align:left;padding:16px">
-      <h2 style="color:var(--ember)">${flavor.glyph} ${flavor.name}</h2>
+      <h2 style="color:var(--ember)">${ic('capstone_'+G.patron.key, flavor.glyph, 24)} ${flavor.name}</h2>
       <p><small class="hint">${flavor.desc}</small></p>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <span class="tag">Reward: 600g</span>
@@ -7511,7 +7567,7 @@ function buildCapstoneHtml(){
         <span class="tag" style="${cs.squadReady?'color:var(--good);border-color:var(--good)':''}">${cs.squadReady?'✓':'○'} Recruits who reached max level: ${cs.veteranCount}/${CAPSTONE_VETERANS_REQUIRED}</span>
       </div>
     </div>` : `
-    <div class="hint" style="padding:4px 2px">🏔 ${flavor.name} awaits, once your company has grown enough to face it.</div>`;
+    <div class="hint" style="padding:4px 2px">${ic('page_capstone_hint','🏔',12)} ${flavor.name} awaits, once your company has grown enough to face it.</div>`;
 }
 
 function buildTempleHtml(){
@@ -7520,7 +7576,7 @@ function buildTempleHtml(){
       const hurt = G.roster.filter(r=>r.alive && r.hp<r.maxhp);
       return `
     <div class="card">
-      <h2 style="color:var(--ember)">☩ The Temple</h2>
+      <h2 style="color:var(--ember)">${ic('page_temple','☩',24)} The Temple</h2>
       <small class="hint">Reclaimed.</small>
       <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:8px">
         <small class="hint">The Temple's healers offer their services -- for a price. Wait for free recovery instead, if gold is tight. (Injured recruits recover only by resting -- the healers can't rush that.)</small>
@@ -7538,7 +7594,7 @@ function buildTempleHtml(){
     if((G.templeChainStep||0) >= TEMPLE_CHAIN.length){
       return `
     <div class="card victoryscreen" style="text-align:left;padding:16px">
-      <h2 style="color:var(--ember)">☩ The Endless Rite</h2>
+      <h2 style="color:var(--ember)">${ic('page_temple','☩',24)} The Endless Rite</h2>
       <p><small class="hint">Whatever answered when the wards went dark has been standing vigil ever since — not guarding the Temple, but finishing a rite that ended centuries ago without it. It doesn't know the difference between you and whoever it was originally protecting this place from. That won't help you.</small></p>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <span class="tag">Reward: 400g</span>
@@ -7561,7 +7617,7 @@ function buildTempleHtml(){
     const nextDef = TEMPLE_CHAIN.find(c=>c.step===nextStep);
     return `
     <div class="card victoryscreen" style="text-align:left;padding:16px">
-      <h2 style="color:var(--ember)">☩ ${nextDef.name}</h2>
+      <h2 style="color:var(--ember)">${ic('page_temple','☩',24)} ${nextDef.name}</h2>
       <p><small class="hint">${nextDef.desc}</small></p>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <span class="tag">Step ${nextStep}/${TEMPLE_CHAIN.length} — Reward: ${120+nextDef.tier*30}g</span>
@@ -7582,7 +7638,7 @@ function buildExhibitionHtml(){
   if(!G.exhibitionPickerOpen){
     return `
     <div class="card">
-      <h2>🥊 Exhibition Match</h2>
+      <h2>${ic('page_exhibition','🥊',24)} Exhibition Match</h2>
       <small class="hint">A solo bout in the practice ring -- spar a recruit up without spending a day. No reputation on the line, no purse either, just the fight itself.</small>
       <div style="margin-top:8px">
         <button onclick="toggleExhibitionPicker()">Exhibition Match</button>
@@ -7592,7 +7648,7 @@ function buildExhibitionHtml(){
   const eligible = G.roster.filter(r=>r.alive && r.injuryBenchRemaining<=0);
   return `
     <div class="card">
-      <h2>🥊 Exhibition Match — Choose a Recruit</h2>
+      <h2>${ic('page_exhibition','🥊',24)} Exhibition Match — Choose a Recruit</h2>
       <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
         ${eligible.length ? eligible.map(r=>{
           const cost = exhibitionCost(r);
@@ -7613,7 +7669,7 @@ function buildArenaHtml(){
       const retrainable = G.roster.filter(retrainEligible);
       return `
     <div class="card">
-      <h2 style="color:var(--ember)">🗡 The Arena</h2>
+      <h2 style="color:var(--ember)">${ic('page_arena','🗡',24)} The Arena</h2>
       <small class="hint">Reclaimed.</small>
       <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:8px">
         <small class="hint">Retrain any recruit's weapon -- reassigns their base class too.</small>
@@ -7634,7 +7690,7 @@ function buildArenaHtml(){
     if((G.arenaChainStep||0) >= ARENA_CHAIN.length){
       return `
     <div class="card victoryscreen" style="text-align:left;padding:16px">
-      <h2 style="color:var(--ember)">🗡 The Endless Bout</h2>
+      <h2 style="color:var(--ember)">${ic('page_arena','🗡',24)} The Endless Bout</h2>
       <p><small class="hint">It has never once accepted a loss -- not tonight, not in longer than anyone keeping count can remember. Beating it down isn't the hard part. Making it stay down is.</small></p>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <span class="tag">Reward: 400g</span>
@@ -7657,7 +7713,7 @@ function buildArenaHtml(){
     const nextDef2 = ARENA_CHAIN.find(c=>c.step===nextStep2);
     return `
     <div class="card victoryscreen" style="text-align:left;padding:16px">
-      <h2 style="color:var(--ember)">🗡 ${nextDef2.name}</h2>
+      <h2 style="color:var(--ember)">${ic('page_arena','🗡',24)} ${nextDef2.name}</h2>
       <p><small class="hint">${nextDef2.desc}</small></p>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <span class="tag">Step ${nextStep2}/${ARENA_CHAIN.length} — Reward: ${120+nextDef2.tier*30}g</span>
@@ -7683,17 +7739,17 @@ function renderCompanyHallPage(){
     }
     parts.push(tappableTag(`r${r.id}-bg`, r.bg.name, r.bg.flavor+(formatBgMods(r.bg)?' <b style="color:var(--ember)">('+formatBgMods(r.bg)+')</b>':'')));
     if(r.trait) parts.push(tappableTag(`r${r.id}-trait`, r.trait.name, r.trait.flavor+(formatTraitMods(r.trait)?' <b style="color:var(--ember)">('+formatTraitMods(r.trait)+')</b>':'')));
-    if(r.canHeal) parts.push(tappableTag(`r${r.id}-heal`, '✚ Healer', 'Can spend an action to heal an ally (or themself) for 2-4 HP instead of attacking.', 'color:var(--good);border-color:var(--good)'));
-    if(r.canCast) parts.push(tappableTag(`r${r.id}-cast`, '✦ Caster', `Can spend an action to channel a ranged, armor-piercing bolt instead of a normal attack. Bolt power ${3+(r.veteranLevel||0)*2} (3 + veteran level×2), then minus half the target's DEF, ±1-2 variance, minimum 1. Ignores half armor.`, 'color:var(--corrupt);border-color:var(--corrupt)', 'max-height:180px'));
-    if(r.equipment&&r.equipment.hand) parts.push(tappableTag(`r${r.id}-hand`, '💍 '+r.equipment.hand.name, r.equipment.hand.flavor+(formatTraitMods(r.equipment.hand)?' <b style="color:var(--ember)">('+formatTraitMods(r.equipment.hand)+')</b>':''), 'color:var(--ember);border-color:var(--ember-dim)'));
-    if(r.equipment&&r.equipment.head) parts.push(tappableTag(`r${r.id}-head`, '👑 '+r.equipment.head.name, r.equipment.head.flavor+(formatTraitMods(r.equipment.head)?' <b style="color:var(--ember)">('+formatTraitMods(r.equipment.head)+')</b>':''), 'color:var(--ember);border-color:var(--ember-dim)'));
-    if(r.injuryBenchRemaining>0) parts.push(tappableTag(`r${r.id}-injured`, `🩹 Injured (${r.injuryBenchRemaining} left)`, `Benched -- can't be deployed (including Exhibition Matches) for ${r.injuryBenchRemaining} more expedition${r.injuryBenchRemaining===1?'':'s'}. No stat penalty, just needs the rest. Ticks down by 1 each expedition sat out.`, 'color:var(--blood);border-color:var(--blood)'));
+    if(r.canHeal) parts.push(tappableTag(`r${r.id}-heal`, ic('action_heal','✚',12)+' Healer', 'Can spend an action to heal an ally (or themself) for 2-4 HP instead of attacking.', 'color:var(--good);border-color:var(--good)'));
+    if(r.canCast) parts.push(tappableTag(`r${r.id}-cast`, ic('action_cast','✦',12)+' Caster', `Can spend an action to channel a ranged, armor-piercing bolt instead of a normal attack. Bolt power ${3+(r.veteranLevel||0)*2} (3 + veteran level×2), then minus half the target's DEF, ±1-2 variance, minimum 1. Ignores half armor.`, 'color:var(--corrupt);border-color:var(--corrupt)', 'max-height:180px'));
+    if(r.equipment&&r.equipment.hand) parts.push(tappableTag(`r${r.id}-hand`, ic('tag_ring','💍',12)+' '+r.equipment.hand.name, r.equipment.hand.flavor+(formatTraitMods(r.equipment.hand)?' <b style="color:var(--ember)">('+formatTraitMods(r.equipment.hand)+')</b>':''), 'color:var(--ember);border-color:var(--ember-dim)'));
+    if(r.equipment&&r.equipment.head) parts.push(tappableTag(`r${r.id}-head`, ic('tag_crown','👑',12)+' '+r.equipment.head.name, r.equipment.head.flavor+(formatTraitMods(r.equipment.head)?' <b style="color:var(--ember)">('+formatTraitMods(r.equipment.head)+')</b>':''), 'color:var(--ember);border-color:var(--ember-dim)'));
+    if(r.injuryBenchRemaining>0) parts.push(tappableTag(`r${r.id}-injured`, `${ic('tag_injured','🩹',12)} Injured (${r.injuryBenchRemaining} left)`, `Benched -- can't be deployed (including Exhibition Matches) for ${r.injuryBenchRemaining} more expedition${r.injuryBenchRemaining===1?'':'s'}. No stat penalty, just needs the rest. Ticks down by 1 each expedition sat out.`, 'color:var(--blood);border-color:var(--blood)'));
     const bondedIds = Object.keys(r.missionsWith||{}).filter(id=>(r.missionsWith[id]||0)>=BOND_MISSIONS_THRESHOLD && G.roster.find(x=>x.id===Number(id)));
     bondedIds.forEach(otherId=>{
       const count = r.missionsWith[otherId];
       const other = G.roster.find(x=>x.id===Number(otherId));
       const capNote = bondedIds.length>1 ? ` Bond bonus is capped at 1 per recruit -- with ${bondedIds.length} qualifying partners, only one applies at a time, not all stacked.` : '';
-      parts.push(tappableTag(`r${r.id}-bond${otherId}`, `🤝 ${other.name}`,
+      parts.push(tappableTag(`r${r.id}-bond${otherId}`, `${ic('tag_bond','🤝',12)} ${other.name}`,
         `Bonded — ${count} missions fought together. +${BOND_ATK_BONUS} ATK, +${BOND_DEF_BONUS} DEF while deployed together.${capNote}`,
         'color:var(--good);border-color:var(--good)'));
     });
@@ -7722,7 +7778,7 @@ function renderCompanyHallPage(){
     </div>`;
   }).join('');
   const trainer = activeTrainer();
-  const trainerChip = trainer ? tappableTag('active-trainer', `🎓 Trainer: ${trainer.name}`,
+  const trainerChip = trainer ? tappableTag('active-trainer', `${ic('tag_trainer','🎓',12)} Trainer: ${trainer.name}`,
     `Retired veterans train the active roster. ${trainer.name} reduces every active recruit's next level threshold by 1 mission. Only the most recently retired trainer's effect applies -- retiring another trainer replaces this one, it doesn't stack.`,
     'color:var(--good);border-color:var(--good)') : null;
   return `
@@ -7734,12 +7790,12 @@ function renderCompanyHallPage(){
         ${rosterRows || '<small class="hint">Your roster is empty. Visit the Recruitment Office.</small>'}
       </div>
       <p style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto">
-        <span class="chip" style="white-space:nowrap">🏠 Barracks <b>${G.roster.length}</b>/${barracksCap()}</span>
+        <span class="chip" style="white-space:nowrap">${ic('tag_barracks','🏠',12)} Barracks <b>${G.roster.length}</b>/${barracksCap()}</span>
         <button style="white-space:nowrap;${G.confirmExpandBarracks?'color:var(--blood);border-color:var(--blood)':''}" onclick="expandBarracks()" ${G.gold<barracksExpansionCost()?'disabled':''}>${G.confirmExpandBarracks?`Confirm? (${barracksExpansionCost()}g)`:`Expand (+${BARRACKS_SLOTS_PER_EXPANSION}, ${barracksExpansionCost()}g)`}</button>
       </p>
       <p style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="subtle" onclick="advanceDayAction()" title="Skip a day without embarking -- pays retainers, lets wounds mend, no mission attempted">☀ Wait a Day (pay retainers)</button>
-        <button class="subtle" onclick="openHallOfFame()">🏆 Hall of Fame</button>
+        <button class="subtle" onclick="advanceDayAction()" title="Skip a day without embarking -- pays retainers, lets wounds mend, no mission attempted">${ic('page_wait_day','☀',24)} Wait a Day (pay retainers)</button>
+        <button class="subtle" onclick="openHallOfFame()">${ic('page_hall_of_fame','🏆',24)} Hall of Fame</button>
       </p>
     </div>`;
 }
@@ -7747,8 +7803,8 @@ function renderRecruitmentOfficePage(){
   const candRows = G.candidates.map((c,i)=>{
     const parts = [];
     parts.push(tappableTag(`c${i}-bg`, '— '+c.bg.name, c.bg.flavor+(formatBgMods(c.bg)?' <b style="color:var(--ember)">('+formatBgMods(c.bg)+')</b>':''), 'font-size:13px'));
-    if(c.canHeal) parts.push(tappableTag(`c${i}-heal`, '✚ Healer', 'Can spend an action to heal an ally (or themself) for 2-4 HP instead of attacking.', 'color:var(--good);border-color:var(--good)'));
-    if(c.canCast) parts.push(tappableTag(`c${i}-cast`, '✦ Caster', `Can spend an action to channel a ranged, armor-piercing bolt instead of a normal attack. Bolt power 3 at recruitment (3 + veteran level×2, scales as they level), then minus half the target's DEF, ±1-2 variance, minimum 1. Ignores half armor.`, 'color:var(--corrupt);border-color:var(--corrupt)'));
+    if(c.canHeal) parts.push(tappableTag(`c${i}-heal`, ic('action_heal','✚',12)+' Healer', 'Can spend an action to heal an ally (or themself) for 2-4 HP instead of attacking.', 'color:var(--good);border-color:var(--good)'));
+    if(c.canCast) parts.push(tappableTag(`c${i}-cast`, ic('action_cast','✦',12)+' Caster', `Can spend an action to channel a ranged, armor-piercing bolt instead of a normal attack. Bolt power 3 at recruitment (3 + veteran level×2, scales as they level), then minus half the target's DEF, ±1-2 variance, minimum 1. Ignores half armor.`, 'color:var(--corrupt);border-color:var(--corrupt)'));
     if(c.trait) parts.push(tappableTag(`c${i}-trait`, c.trait.name, c.trait.flavor+(formatTraitMods(c.trait)?' <b style="color:var(--ember)">('+formatTraitMods(c.trait)+')</b>':'')));
     const panels = parts.map(p=>p.panelHtml).join('');
     return `
@@ -7796,11 +7852,11 @@ function renderTerritoriesPage(){
   // (v2.1.13: elysium/agora tiles removed -- regions removed entirely, scope-reduction Stage 3.)
   const tu = templeUnlockReady(), aru = arenaUnlockReady();
   const regions = [
-    {key:'temple', icon:'☩', name:'The Temple', status:territoryStatus(G.templeReclaimed, G.templeChainStep, TEMPLE_CHAIN.length, templeUnlockReady),
+    {key:'temple', icon:ic('page_temple','☩',48), name:'The Temple', status:territoryStatus(G.templeReclaimed, G.templeChainStep, TEMPLE_CHAIN.length, templeUnlockReady),
      lockedText:`Silent since its wards went dark.`, progressText:`○ Darkness held back via tithe: ${tu.count}/${tu.threshold}`,
      activeText: (G.templeChainStep||0)<TEMPLE_CHAIN.length ? `Step ${(G.templeChainStep||0)+1}/${TEMPLE_CHAIN.length} — ${(TEMPLE_CHAIN.find(c=>c.step===(G.templeChainStep||0)+1)||{}).name||''}` : '',
      bossText:'The Endless Rite awaits', reclaimedText:'Infirmary available'},
-    {key:'arena', icon:'🗡', name:'The Arena', status:territoryStatus(G.arenaReclaimed, G.arenaChainStep, ARENA_CHAIN.length, arenaUnlockReady),
+    {key:'arena', icon:ic('page_arena','🗡',48), name:'The Arena', status:territoryStatus(G.arenaReclaimed, G.arenaChainStep, ARENA_CHAIN.length, arenaUnlockReady),
      lockedText:`A tournament that never learned how to end.`, progressText:`○ Veterans trained to mastery: ${aru.count}/${aru.threshold}`,
      activeText: (G.arenaChainStep||0)<ARENA_CHAIN.length ? `Step ${(G.arenaChainStep||0)+1}/${ARENA_CHAIN.length} — ${(ARENA_CHAIN.find(c=>c.step===(G.arenaChainStep||0)+1)||{}).name||''}` : '',
      bossText:'The Endless Bout awaits', reclaimedText:'Retraining available'}
@@ -7895,7 +7951,7 @@ function renderDeploy(){
   const squadRows = d.squadIds.map(id=>{
     const u=G.roster.find(r=>r.id===id);
     const placed=d.placed[id];
-    const tags = `${getClassName(u)?`<span class="tag" style="color:var(--ember);border-color:var(--ember-dim)">${getFullClassName(u)} Lv${u.veteranLevel}</span>`:''}${u.canHeal?'<span class="tag" style="color:var(--good);border-color:var(--good)">✚ Healer</span>':''}${u.canCast?'<span class="tag" style="color:var(--corrupt);border-color:var(--corrupt)">✦ Caster</span>':''}`;
+    const tags = `${getClassName(u)?`<span class="tag" style="color:var(--ember);border-color:var(--ember-dim)">${getFullClassName(u)} Lv${u.veteranLevel}</span>`:''}${u.canHeal?'<span class="tag" style="color:var(--good);border-color:var(--good)">'+ic('action_heal','✚',12)+' Healer</span>':''}${u.canCast?'<span class="tag" style="color:var(--corrupt);border-color:var(--corrupt)">'+ic('action_cast','✦',12)+' Caster</span>':''}`;
     return `<div class="statusrow me${d.selecting===id?' active':''}" onclick="pickSquadForPlacement(${id})">
       <div class="statusname">${WEAPONS[u.weaponKey].glyph} ${u.name} <small class="hint" style="margin:0">— ${WEAPONS[u.weaponKey].label}</small> ${tags}</div>
       <div class="barouter"><div class="barinner" style="width:${100*u.hp/u.maxhp}%;background:${hpBarColor(u.hp,u.maxhp)}"></div></div>
@@ -7912,7 +7968,7 @@ function renderDeploy(){
         <div class="gridwrap" style="margin-top:8px"><div class="grid" style="grid-template-columns:repeat(${GW},var(--cell-size))">${cells}</div></div>
         ${d.tileInfoMsg ? `<small class="hint" style="color:var(--ember)">▓ ${d.tileInfoMsg}</small>` : ''}
         <div style="margin-top:10px;display:flex;gap:8px">
-          <button class="primary" onclick="beginBattle()" ${allPlaced?'':'disabled'}>⚔ Begin Battle</button>
+          <button class="primary" onclick="beginBattle()" ${allPlaced?'':'disabled'}>${ic('action_attack','⚔',24)} Begin Battle</button>
           <button class="danger" onclick="cancelExpedition()">${G.deploy.confirmCancel?'Confirm? (counts as a failure)':'Cancel Expedition'}</button>
         </div>
       </div>
@@ -7925,11 +7981,11 @@ function renderDeploy(){
           <h2>Enemies Sighted</h2>
           <div class="statuslist">${d.enemies.map(e=>{
             const mutInfo = mutationsTooltip(e);
-            const nameTag = mutInfo ? tappableTag(`scout-${e.id}`, `${e.label} ${e.name}${e.isBoss?' ☠':''}`, mutInfo, e.isBoss?'color:var(--blood);border-color:var(--blood)':'', 'max-height:180px') : null;
+            const nameTag = mutInfo ? tappableTag(`scout-${e.id}`, `${e.label} ${e.name}${e.isBoss?' '+ic('tag_boss','☠',12):''}`, mutInfo, e.isBoss?'color:var(--blood);border-color:var(--blood)':'', 'max-height:180px') : null;
             return `<div class="statusrow en" style="display:flex;align-items:flex-start">
-            ${portraitBox(e.isBoss?'boss':e.baseType, e.isBoss?'☠':((e.baseType||'?')[0]), 'portrait-sm')}
+            ${portraitBox(e.isCapstoneBoss?'capstone':e.isBoss?'boss:'+e.baseType:e.baseType, e.isBoss?'☠':((e.baseType||'?')[0]), 'portrait-sm')}
             <div style="flex:1;min-width:0">
-              <div class="statusname">${nameTag ? nameTag.tagHtml : `${e.label} ${e.name}${e.isBoss?' <span class="tag" style="color:var(--blood);border-color:var(--blood)">☠</span>':''}`}</div>
+              <div class="statusname">${nameTag ? nameTag.tagHtml : `${e.label} ${e.name}${e.isBoss?' <span class="tag" style="color:var(--blood);border-color:var(--blood)">'+ic('tag_boss','☠',12)+'</span>':''}`}</div>
               <div class="statushp">HP ${e.maxhp} · ATK ${e.atk} · DEF ${e.def}</div>
               ${nameTag ? nameTag.panelHtml : ''}
             </div>
@@ -8051,36 +8107,36 @@ function renderBattle(){
   if(u){
     unitPanel = `
       <div class="unitpanel">
-        <b>${u.name}</b> ${u.side==='player'?'· '+(getClassName(u)?getFullClassName(u)+' ('+WEAPONS[u.weaponKey].label+')':WEAPONS[u.weaponKey].label):''} ${u.canHeal?'<span class="tag" style="color:var(--good);border-color:var(--good)">✚ Healer</span>':''}${u.canCast?'<span class="tag" style="color:var(--corrupt);border-color:var(--corrupt)">✦ Caster</span>':''}<br>
+        <b>${u.name}</b> ${u.side==='player'?'· '+(getClassName(u)?getFullClassName(u)+' ('+WEAPONS[u.weaponKey].label+')':WEAPONS[u.weaponKey].label):''} ${u.canHeal?'<span class="tag" style="color:var(--good);border-color:var(--good)">'+ic('action_heal','✚',12)+' Healer</span>':''}${u.canCast?'<span class="tag" style="color:var(--corrupt);border-color:var(--corrupt)">'+ic('action_cast','✦',12)+' Caster</span>':''}<br>
         <div class="barouter"><div class="barinner" style="width:${100*u.hp/u.maxhp}%;background:${hpBarColor(u.hp,u.maxhp)}"></div></div>
         HP ${u.hp}/${u.maxhp} · ATK ${u.atk} · DEF ${u.def} · Move ${u.move} · Range ${u.range}
         <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <button class="${b.mode==='move'?'primary':''}" onclick="setMode('move')" ${b.hasMoved?'disabled':''}>${b.hasMoved?'Moved ✓':'Move'}</button>
-          <button class="${b.mode==='attack'?'primary':''}" onclick="setMode('attack')" ${b.hasAttacked||atkSet.length===0?'disabled':''}>${b.hasAttacked?'Attacked ✓':'Attack'}</button>
-          ${u.canHeal ? (()=>{ const info=tappableTag(`u${u.id}-healinfo`,'ⓘ','Restores 2-4 HP to an ally (random, flat -- does not scale with level).'); return `<button class="${b.mode==='heal'?'primary':''}" onclick="setMode('heal')" ${b.hasAttacked||healSet.length===0?'disabled':''}>${b.hasAttacked?'Acted ✓':'Heal (2-4 HP)'}</button>${info.tagHtml}`; })() : ''}
-          ${u.canCast ? (()=>{ const info=tappableTag(`u${u.id}-castinfo`,'ⓘ',`Bolt power ${3+(u.veteranLevel||0)*2} (3 + veteran level x2). Damage = power minus half the target's DEF, plus/minus 1-2 variance, minimum 1. Ignores half the target's armor and doesn't use your weapon or ATK stat.`); return `<button class="${b.mode==='cast'?'primary':''}" onclick="setMode('cast')" ${b.hasAttacked||castSet.length===0?'disabled':''}>${b.hasAttacked?'Acted ✓':'Cast Bolt (armor-pierce)'}</button>${info.tagHtml}`; })() : ''}
+          <button class="${b.mode==='move'?'primary':''}" onclick="setMode('move')" ${b.hasMoved?'disabled':''}>${ic('action_move','',24)}${b.hasMoved?'Moved ✓':'Move'}</button>
+          <button class="${b.mode==='attack'?'primary':''}" onclick="setMode('attack')" ${b.hasAttacked||atkSet.length===0?'disabled':''}>${ic('action_attack','',24)}${b.hasAttacked?'Attacked ✓':'Attack'}</button>
+          ${u.canHeal ? (()=>{ const info=tappableTag(`u${u.id}-healinfo`,'ⓘ','Restores 2-4 HP to an ally (random, flat -- does not scale with level).'); return `<button class="${b.mode==='heal'?'primary':''}" onclick="setMode('heal')" ${b.hasAttacked||healSet.length===0?'disabled':''}>${ic('action_heal','',24)}${b.hasAttacked?'Acted ✓':'Heal (2-4 HP)'}</button>${info.tagHtml}`; })() : ''}
+          ${u.canCast ? (()=>{ const info=tappableTag(`u${u.id}-castinfo`,'ⓘ',`Bolt power ${3+(u.veteranLevel||0)*2} (3 + veteran level x2). Damage = power minus half the target's DEF, plus/minus 1-2 variance, minimum 1. Ignores half the target's armor and doesn't use your weapon or ATK stat.`); return `<button class="${b.mode==='cast'?'primary':''}" onclick="setMode('cast')" ${b.hasAttacked||castSet.length===0?'disabled':''}>${ic('action_cast','',24)}${b.hasAttacked?'Acted ✓':'Cast Bolt (armor-pierce)'}</button>${info.tagHtml}`; })() : ''}
           ${unitAbilities(u).map(a=>{
             const pct = Math.round((a.dmgPct!==undefined?a.dmgPct:DEFAULT_ABILITY_DAMAGE_PCT)*100);
             const effectLabel = abilityEffectLabel(a);
             const label = `${a.name} (${pct}% dmg${effectLabel?', '+effectLabel:''})`;
             const targets = validAbilityTargets(u,a);
-            return `<button class="${b.mode===a.key?'primary':''}" onclick="setMode('${a.key}')" ${b.hasAttacked||targets.length===0?'disabled':''}>${b.hasAttacked?'Acted ✓':label}</button>`;
+            return `<button class="${b.mode===a.key?'primary':''}" onclick="setMode('${a.key}')" ${b.hasAttacked||targets.length===0?'disabled':''}>${ic('action_ability','',24)}${b.hasAttacked?'Acted ✓':label}</button>`;
           }).join('')}
           ${(function(){
             const info = unitSpecializationSkillInfo(u);
             if(!info) return '';
             const skill = info.skill;
             if(info.onCooldown){
-              return `<button disabled>${skill.name} (cooldown: ${info.roundsLeft})</button>`;
+              return `<button disabled>${ic('action_skill','',24)}${skill.name} (cooldown: ${info.roundsLeft})</button>`;
             }
             const label = `${skill.name} (${describeSkill(skill)})`;
             if(skill.instant){
-              return `<button onclick="useSkillInstant('${skill.key}')" ${b.hasAttacked?'disabled':''}>${b.hasAttacked?'Acted ✓':label}</button>`;
+              return `<button onclick="useSkillInstant('${skill.key}')" ${b.hasAttacked?'disabled':''}>${ic('action_skill','',24)}${b.hasAttacked?'Acted ✓':label}</button>`;
             }
             const targets = validSkillTargets(u, skill);
-            return `<button class="${b.mode===skill.key?'primary':''}" onclick="setMode('${skill.key}')" ${b.hasAttacked||targets.length===0?'disabled':''}>${b.hasAttacked?'Acted ✓':label}</button>`;
+            return `<button class="${b.mode===skill.key?'primary':''}" onclick="setMode('${skill.key}')" ${b.hasAttacked||targets.length===0?'disabled':''}>${ic('action_skill','',24)}${b.hasAttacked?'Acted ✓':label}</button>`;
           })()}
-          <button onclick="endTurn()">End Turn</button>
+          <button onclick="endTurn()">${ic('action_end_turn','',24)}End Turn</button>
         </div>
         ${u.canHeal&&tagInfoOpen(`u${u.id}-healinfo`)?`<div class="taginfo open">Restores 2-4 HP to an ally (random, flat -- does not scale with level).</div>`:''}
         ${u.canCast&&tagInfoOpen(`u${u.id}-castinfo`)?`<div class="taginfo open">Bolt power ${3+(u.veteranLevel||0)*2} (3 + veteran level x2). Damage = power minus half the target's DEF, plus/minus 1-2 variance, minimum 1. Ignores half the target's armor and doesn't use your weapon or ATK stat.</div>`:''}
@@ -8091,14 +8147,14 @@ function renderBattle(){
   const statusRow = (uu)=>{
     const cls = uu.side==='player' ? 'statusrow me' : 'statusrow en';
     const active = (u && uu.id===u.id) ? ' active' : '';
-    const tags = `${uu.side==='player'&&uu.weaponKey?`<span class="tag">${WEAPONS[uu.weaponKey].label}</span>`:''}${uu.side==='player'&&getClassName(uu)?`<span class="tag">${getFullClassName(uu)}</span>`:''}${uu.canHeal?'<span class="tag" style="color:var(--good);border-color:var(--good)">✚</span>':''}${uu.canCast?'<span class="tag" style="color:var(--corrupt);border-color:var(--corrupt)">✦</span>':''}${uu.isBoss?'<span class="tag" style="color:var(--blood);border-color:var(--blood)">☠</span>':''}`;
+    const tags = `${uu.side==='player'&&uu.weaponKey?`<span class="tag">${WEAPONS[uu.weaponKey].label}</span>`:''}${uu.side==='player'&&getClassName(uu)?`<span class="tag">${getFullClassName(uu)}</span>`:''}${uu.canHeal?'<span class="tag" style="color:var(--good);border-color:var(--good)">'+ic('action_heal','✚',12)+'</span>':''}${uu.canCast?'<span class="tag" style="color:var(--corrupt);border-color:var(--corrupt)">'+ic('action_cast','✦',12)+'</span>':''}${uu.isBoss?'<span class="tag" style="color:var(--blood);border-color:var(--blood)">'+ic('tag_boss','☠',12)+'</span>':''}`;
     const statSpan = (label, val, stat) => {
       const dir = statModDirection(uu, stat);
       const color = dir==='buff' ? 'var(--good)' : dir==='debuff' ? 'var(--blood)' : 'inherit';
       return `${label} <span style="color:${color}">${val}</span>`;
     };
     const expanded = G.battle.expandedUnitId===uu.id ? `<div class="statusdetail">${statSpan('ATK',uu.atk,'atk')} · ${statSpan('DEF',uu.def,'def')} · ${statSpan('AGI',uu.init,'init')} · ${statSpan('Move',uu.move,'move')} · Range ${uu.range}${mutationsTooltip(uu)?'<br>'+mutationsTooltip(uu).split('\n').join('<br>'):''}</div>` : '';
-    const portrait = uu.side==='enemy' ? portraitBox(uu.isBoss?'boss':uu.baseType, uu.isBoss?'☠':((uu.baseType||'?')[0]), 'portrait-sm') : '';
+    const portrait = uu.side==='enemy' ? portraitBox(uu.isCapstoneBoss?'capstone':uu.isBoss?'boss:'+uu.baseType:uu.baseType, uu.isBoss?'☠':((uu.baseType||'?')[0]), 'portrait-sm') : '';
     return `<div class="${cls}${active}" onclick="toggleUnitExpand(${uu.id})" style="display:flex;align-items:flex-start">
       ${portrait}
       <div style="flex:1;min-width:0">
@@ -8119,14 +8175,14 @@ function renderBattle(){
         <div class="gridwrap"><div class="grid" style="grid-template-columns:repeat(${GW},var(--cell-size))">${cells}</div></div>
         ${b.tileInfoMsg ? `<small class="hint" style="color:var(--ember)">▓ ${b.tileInfoMsg}</small>` : ''}
         <div class="taglegend" style="margin-top:6px">
-          <small class="hint" style="cursor:pointer" onclick="toggleTerrainLegend()">🗺 Battle Key ${G.terrainLegendExpanded?'(click to collapse)':'(click to expand)'}</small>
+          <small class="hint" style="cursor:pointer" onclick="toggleTerrainLegend()">${ic('page_battle_key','🗺',12)} Battle Key ${G.terrainLegendExpanded?'(click to collapse)':'(click to expand)'}</small>
           ${G.terrainLegendExpanded ? `
           <div class="taginfo open" style="max-height:240px">
-            <b>~</b> Difficult Terrain — costs an extra step of movement to enter<br>
-            <b>▓ █ ▲ ♣ ♠</b> Obstacles (rubble, walls, rock, bramble, trees) — block movement; some also block line of sight for ranged attacks<br>
-            <b>^</b> High Ground — +1 DEF while standing on it<br>
-            <b>✦</b> Objective — mission objective marker<br>
-            <b>Light:</b> Lit tiles — anyone can attack here. Dim tiles — melee's fine, but ranged attacks can't target here. Fog — undiscovered, could be hiding anything.
+            ${tic('difficult','<b>~</b>')} Difficult Terrain — costs an extra step of movement to enter<br>
+            ${tic('obstacles','<b>▓ █ ▲ ♣ ♠</b>')} Obstacles (rubble, walls, rock, bramble, trees) — block movement; some also block line of sight for ranged attacks<br>
+            ${tic('highground','<b>^</b>')} High Ground — +1 DEF while standing on it<br>
+            ${tic('objective','<b>✦</b>')} Objective — mission objective marker<br>
+            <b>Light:</b> ${tic('lit','')}Lit tiles — anyone can attack here. ${tic('dim','')}Dim tiles — melee's fine, but ranged attacks can't target here. ${tic('fog','')}Fog — undiscovered, could be hiding anything.
           </div>` : ''}
         </div>
         <div class="initstrip">${initStrip}</div>

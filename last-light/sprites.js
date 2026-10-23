@@ -20,6 +20,9 @@
 
    Phase 1 (v2.2.0): floors, terrain, objective, units, light and fog,
      duplicate labels, phone grid-size option A/B/C.
+   Phase 3 (v2.2.2): LL_ICON_HTML / LL_PORTRAIT_HTML / LL_TILE_HTML, which the
+     game's ic() / portraitBox() / tic() call to swap emoji, letter portraits and
+     Battle Key symbols for the pixel icons, sprite portraits and real tiles.
    Phase 2 (v2.2.1): idle loops, attack / Heal / Cast Bolt / ability strips,
      Brood Swarm frame, projectiles (arrow, violet bolt), hit flash + shake +
      spark, heal motes, death fade-and-drop, fade-in for new arrivals, elite /
@@ -114,6 +117,7 @@
   }
   Object.keys(ART.sprites).forEach(k=>{
     if(/^(floor_\w+_[abc]$|terrain_|class_|weapon_|enemy_|fx_|ui_badge_)/.test(k) && !/_f0$/.test(k)) sprite(k);
+    if(/^icon_(?!s$)/.test(k)) sprite(k);
   });
   function frameCount(rec){ return rec.meta.frames || 1; }
   // One frame of a strip as its own small canvas (cached).
@@ -739,6 +743,62 @@
     sceneReady = true;
     return busy;
   }
+
+  // ---------------------------------------------------------------- icons, portraits, Battle Key tiles (Phase 3)
+  // Called by the game's ic() / portraitBox() / tic() while it builds HTML. Each
+  // returns null when it has no art, and the game then keeps its old text.
+  function imgTag(src, px, cls, alt){
+    return `<img class="${cls}" src="${src}" width="${px}" height="${px}" alt="${alt||''}" draggable="false">`;
+  }
+  window.LL_ICON_HTML = function(key, size){
+    const meta = ART.sprites['icon_'+key];
+    if(!meta || (images['icon_'+key] && images['icon_'+key].state==='missing')) return null;
+    sprite('icon_'+key);
+    return imgTag(meta.src, size||12, 'llicon');
+  };
+  window.LL_PORTRAIT_HTML = function(key, sizeClass){
+    if(!key) return null;
+    const px = sizeClass==='portrait-lg' ? 48 : 24;
+    let k = null, cls = 'llportrait';
+    if(key==='capstone'){ k = G && G.patron ? 'enemy_capstone_'+G.patron.key+'_f0' : null; cls += ' boss'; }
+    else if(key.indexOf('boss:')===0){ const sk = ENEMY_KEY_BY_NAME[key.slice(5)]; k = sk ? sk+'_f0' : 'icon_tag_boss'; cls += ' boss'; }
+    else if(ENEMY_KEY_BY_NAME[key]) k = ENEMY_KEY_BY_NAME[key]+'_f0';
+    else if(ART.sprites['icon_capstone_'+key]) k = 'icon_capstone_'+key;   // patron slot: capstone emblem until portraits exist
+    const meta = k && ART.sprites[k];
+    if(!meta) return null;
+    return imgTag(meta.src, px, cls);
+  };
+  const tileCache = new Map();
+  function tileURL(id, build){
+    if(tileCache.has(id)) return tileCache.get(id);
+    const c = document.createElement('canvas'); c.width = c.height = ART_SIZE;
+    const x = c.getContext('2d');
+    if(!build(x)) return null;                       // art not loaded yet: keep the text this time
+    const url = c.toDataURL('image/png');
+    tileCache.set(id, url);
+    return url;
+  }
+  function layer(x, key, frame){ const rec = sprite(key); if(!rec) return false; x.drawImage(frameCanvas(rec, frame||0), 0, 0); return true; }
+  window.LL_TILE_HTML = function(kind, setting){
+    const floor = 'floor_'+setting+'_a';
+    const one = (id, build)=>{ const u = tileURL(setting+'|'+id, build); return u ? imgTag(u, 24, 'lltile') : null; };
+    if(kind==='difficult') return one(kind, x=>layer(x,floor) && layer(x,TILE_SPRITE_KEYS.difficult+'_'+setting));
+    if(kind==='highground') return one(kind, x=>layer(x,floor) && layer(x,TILE_SPRITE_KEYS.highGround+'_'+setting));
+    if(kind==='objective') return one(kind, x=>layer(x,floor) && layer(x,TILE_SPRITE_KEYS.objective));
+    if(kind==='lit') return one(kind, x=>{ if(!layer(x,floor)) return false; x.fillStyle = LIGHT.litWash; x.fillRect(0,0,24,24); return true; });
+    if(kind==='dim') return one(kind, x=>{ if(!layer(x,floor)) return false; x.fillStyle = `rgba(0,0,0,${LIGHT.dimRingDark})`; x.fillRect(0,0,24,24); x.fillStyle = LIGHT.ringWash; x.fillRect(0,0,24,24); return true; });
+    if(kind==='fog') return one(kind, x=>{ x.fillStyle = '#000'; x.fillRect(0,0,24,24); return true; });
+    if(kind==='obstacles'){
+      const cfg = MISSION_SETTINGS[setting];
+      if(!cfg) return null;
+      const parts = cfg.obstacleTypes.map(t=>{
+        const key = (t.spriteKey==='terrain_wall' && setting==='ruins') ? 'terrain_wall_ruins_a' : t.spriteKey;
+        return one('obs:'+key, x=>layer(x,floor) && layer(x,key));
+      });
+      return parts.every(Boolean) ? parts.join('') : null;
+    }
+    return null;
+  };
 
   // ---------------------------------------------------------------- canvas + layout
   let lastGrid = null, lastSig = '', lastDraw = 0, errorCount = 0, busy = false;
