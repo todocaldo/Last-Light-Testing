@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>LAST LIGHT: LEAN v1 (engine v2.2.0)</title>
+<title>LAST LIGHT: LEAN v1 (engine v2.2.1)</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -24,6 +24,31 @@
   beneath this milestone name for ongoing dev tracking -- see below for the
   v2.1.16 changelog entry, with the full v2.1.15 entry this build carries
   forward verbatim underneath it.
+  ===========================================================================
+
+  LAST LIGHT -- v2.2.1
+  Art wiring, Phase 2 of 5 (battle in motion). Plan: "Last Light -- Art
+  Wiring Proposal" (https://claude.ai/artifact/UxEYKh1EDNtbxffPxdsEE3).
+  - Game logic (the only changes): a no-op fx(type, data) that the game
+    calls when an attack, Cast Bolt, Heal, Lv3 skill or enemy ability
+    resolves (sprites.js installs the real handler; the harness never
+    does), and the approved enemy attack pause -- enemyAttackPause()
+    holds ENEMY_ANIM_DELAY_MS*3 (~450ms) after each enemy attack or
+    ability and is skipped entirely when the delay is 0. Verified with
+    a seeded run: 480 harness trials give identical results (and round
+    counts) on v2.2.0 and v2.2.1.
+  - Renderer: idle loops; attack, Heal, Cast Bolt and ability strips
+    (Guardian Heal 2-4 / strike 5-7; Arcanist Cast 2-5 / strike 6-7-7,
+    both set by Randall; specializations follow their class); Brood
+    Swarm frame with the Crawler appearing on its beat; arrows and the
+    violet bolt in flight; white hit flash, shake and spark; heal motes;
+    death fade-and-drop; fade-in for new arrivals; elite, mutation,
+    Elder, capstone, Awakening and Endless Bout phase-2 effects drawn
+    from each sprite's own silhouette; boss aura; objective pulse;
+    healer/caster badge on recruits below Lv1 (decided 2026-10-23).
+    Reduced-motion holds idle loops; attacks and deaths still play.
+  - Phone grid size: the A/B/C switch now opens on B (chosen by Randall
+    2026-10-22). A phone that already saved a choice keeps it.
   ===========================================================================
 
   LAST LIGHT -- v2.2.0
@@ -2511,7 +2536,7 @@
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.2.0)</span></h1>
+      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.2.1)</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
@@ -2542,6 +2567,19 @@ const GW=12, GH=12;
 // teleporting to their final position. Player movement is unaffected -- stays instant.
 let ENEMY_ANIM_DELAY_MS = 150;
 function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
+// Art wiring Phase 2 (v2.2.1): the game REPORTS what happened through fx(type, data);
+// it never waits on, or reads from, the renderer. sprites.js replaces this no-op with
+// its own handler in the browser; in the testing harness it stays a no-op, so combat
+// results can't change. Deaths need no call: the renderer notices alive -> fallen.
+function fx(type, data){}
+// Enemy attack pause (v2.2.1, approved 2026-10-23): after each enemy attack or ability
+// the board holds for ENEMY_ANIM_DELAY_MS*3 (~450ms) so its attack strip can be seen.
+// Skipped entirely when the delay is 0 (the harness), so headless timing is unchanged.
+async function enemyAttackPause(){
+  if(!ENEMY_ANIM_DELAY_MS) return;
+  render();
+  await sleep(ENEMY_ANIM_DELAY_MS*3);
+}
 
 const BACKGROUNDS=[
  {name:'Farmhand',hp:2,str:0,def:1,agi:0,flavor:'Knows hard labor, not war.'},
@@ -5550,6 +5588,7 @@ function resolveSkillAttack(caster, skill, target){
   }
 }
 function useSpecializationSkill(caster, skill, enemyTarget){
+  fx('skill', {caster, skill, target: enemyTarget});
   caster.skillCooldowns = caster.skillCooldowns || {};
   caster.skillCooldowns[skill.key] = G.battle.round;
   addBattleLog(`${caster.name} uses ${skill.name}!`, caster.side==='player'?'good':'bad');
@@ -5861,6 +5900,7 @@ function useEnemyAbility(enemy, ability, target){
   enemy.abilityCooldowns = enemy.abilityCooldowns || {};
   enemy.abilityCooldowns[ability.name] = G.battle.round;
   addBattleLog(`${enemy.name} uses ${ability.name}!`, 'bad');
+  fx('ability', {unit: enemy, ability, target});
   if(ability.summon){
     const t = findEnemyArchetype(ability.summon.type);
     if(!t) return;
@@ -6087,12 +6127,15 @@ async function enemyAct(enemy){
             : [nearest];
           await telegraph(aoeTiles);
         }
-        useEnemyAbility(enemy, ability, nearest); return true;
+        useEnemyAbility(enemy, ability, nearest);
+        await enemyAttackPause();
+        return true;
       }
     }
     if(chebyshev(enemy,nearest)<=enemy.range && (enemy.range<=1||hasLineOfSight(enemy.x,enemy.y,nearest.x,nearest.y))){
       if(enemy.range>1) await telegraph([nearest]);
       attackUnit(enemy,nearest);
+      await enemyAttackPause();
       if(hasMutation(enemy,'Two-headed') && enemy.alive){
         const inRange = G.battle.units.filter(u=>u.side==='player'&&u.alive&&chebyshev(enemy,u)<=enemy.range&&(enemy.range<=1||hasLineOfSight(enemy.x,enemy.y,u.x,u.y)));
         if(inRange.length){
@@ -6100,6 +6143,7 @@ async function enemyAct(enemy){
           if(second.alive){
             if(enemy.range>1) await telegraph([second]);
             attackUnit(enemy, second);
+            await enemyAttackPause();
           }
         }
       }
@@ -6216,6 +6260,7 @@ function resolveEnemyDeath(unit){
   return true;
 }
 function attackUnit(attacker,defender){
+  fx('attack', {attacker, defender});
   // Frenzied/Numbed (renamed from Enraged, v2.1.1 mutation consolidation) both scale
   // dynamically off CURRENT HP%, recomputed fresh on every attack rather than a
   // one-time permanent stat change like Awakening -- as the unit takes more damage
@@ -6508,6 +6553,7 @@ function validCastTargets(u){
   return G.battle.units.filter(e=>e.side==='enemy'&&e.alive&&chebyshev(u,e)<=2&&hasLineOfSight(u.x,u.y,e.x,e.y)&&(!visSet||visSet.has(e.x+','+e.y))).map(e=>e.x+','+e.y);
 }
 function castBolt(caster,target){
+  fx('cast', {caster, target});
   const casterPower = 3 + (caster.veteranLevel||0)*2;
   const dmg=Math.max(1, casterPower - Math.floor(target.def/2) + rand(-1,2));
   target.hp-=dmg;
@@ -6526,6 +6572,7 @@ function validHealTargets(u){
   return G.battle.units.filter(p=>p.side==='player'&&p.alive&&p.hp<p.maxhp&&chebyshev(u,p)<=2).map(p=>p.x+','+p.y);
 }
 function healUnit(healer,target){
+  fx('heal', {healer, target});
   const amt=rand(2,4);
   const before=target.hp;
   target.hp=Math.min(target.maxhp, target.hp+amt);
