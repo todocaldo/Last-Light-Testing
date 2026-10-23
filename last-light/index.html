@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>LAST LIGHT: LEAN v1 (engine v2.2.2)</title>
+<title>LAST LIGHT: LEAN v1 (engine v2.2.3)</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -25,6 +25,27 @@
   v2.1.16 changelog entry, with the full v2.1.15 entry this build carries
   forward verbatim underneath it.
   ===========================================================================
+
+  LAST LIGHT -- v2.2.3
+  Art wiring, Phase 4 of 5 (the camp hub as home).
+  - Render and navigation code only. Seeded run: 480 harness trials
+    identical to v2.2.2 (hash c53f858e...).
+  - The hilltop town is the camp's home screen. New campaigns open on it;
+    after a mission the game still lands on Company Hall (v2.0.4 rationale),
+    with Town one tap away. Buildings are tap areas with name plates; the
+    town darkens in four stages with the Darkness meter, and a reclaimed
+    Temple or Arena stays lit. Without sprites.js the Town page is a plain
+    list of the same places.
+  - Camp page buttons are a bar along the bottom: Town, Company Hall,
+    Recruitment, Expedition Board, Territories.
+  - Tapping the Beacon opens the tithe details (with Pay Tithe Early).
+  - Camp header is compact: Day, Gold, Tithe, Darkness. Patron, upkeep,
+    roster count, the full tithe line and Darkness Removed moved to a
+    ledger card at the top of Company Hall.
+  - goBack() in platform.js: browser back gesture and the Android back
+    button close open panels, then step back to the town.
+  - Dagger and Rogue units throw a dagger (iron or steel) at targets more
+    than one tile away.
 
   LAST LIGHT -- v2.2.2
   Art wiring, Phase 3 of 5 (icons and portraits).
@@ -2560,6 +2581,33 @@
   header.compact-header .patron-chipgroup{display:none!important}
   .cell button img.llicon{margin:0;display:block}
   header.compact-header .battlechips .chip img.llicon{margin:-6px 4px -4px 0}
+  /* --- Camp hub and the bottom bar (v2.2.3, Phase 4). --- */
+  nav.backbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-template-columns:1.15fr 1fr 1fr 1fr 1fr;gap:4px;
+    background:var(--panel);border-top:1px solid var(--line);
+    padding:6px max(6px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left))}
+  nav.backbar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:48px;padding:4px 2px;font-size:10.5px;line-height:1.15;text-align:center}
+  nav.backbar button.active{background:#2a2010;border-color:var(--ember);color:var(--ember);cursor:default}
+  nav.backbar .backbar-town{border-color:var(--ember-dim);color:var(--ember)}
+  nav.backbar .backbar-town img.llicon{margin:0}
+  .backbar-spacer{height:calc(76px + env(safe-area-inset-bottom))}
+  @media (min-width:880px){ nav.backbar{left:50%;right:auto;width:min(1180px,100%);transform:translateX(-50%)} nav.backbar button{font-size:12px} }
+  .llhub-wrap{display:flex;justify-content:center}
+  .llhub{position:relative;width:calc(var(--hub-s)*192px);height:calc(var(--hub-s)*416px);background:#07060a}
+  .llhub-canvas{position:absolute;left:0;top:0;image-rendering:pixelated}
+  .hub-hit{position:absolute;background:transparent;border:1px solid transparent;padding:0;border-radius:3px;-webkit-tap-highlight-color:transparent}
+  .hub-hit:hover:not(:disabled),.hub-hit:active,.hub-hit:focus-visible{border-color:var(--ember);box-shadow:0 0 12px rgba(226,163,61,.55);background:rgba(226,163,61,.08)}
+  .hub-plate{position:absolute;transform:translate(-50%,0);font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:2px 6px;background:rgba(20,18,16,.88);
+    border:1px solid var(--ember-dim);color:var(--ember);white-space:nowrap;cursor:pointer;text-align:center;line-height:1.25}
+  .hub-plate small{display:block;font-size:8.5px;letter-spacing:0;text-transform:none;color:var(--bone)}
+  .hub-plate.dim{color:var(--ash);border-color:var(--line)}
+  .llhub.tiny .hub-plate{font-size:8.5px;padding:1px 4px}
+  .llhub.tiny .hub-plate small{display:none}
+  header.camp-header .campchips,header.compact-header .battlechips{gap:5px;flex-wrap:nowrap}
+  header.camp-header .campchips .chip{padding:2px 6px;white-space:nowrap}
+  header .campchips .tag.tappable,.card.ledger .tag.tappable{border:none;padding:0;margin:0;font-size:12px;color:var(--bone)}
+  header .campchips .tag.tappable.open{background:none;color:var(--ember)}
+  header.camp-header .taginfo.open,.card.ledger .taginfo.open{max-height:none;width:100%}
+  .card.ledger .portrait-lg{flex-shrink:0}
   @media (max-width:647px){
     body.ll-art header.compact-header .ll-gridmode{display:flex}
     body.ll-art .battlegrid-card{padding-left:0;padding-right:0}
@@ -2572,7 +2620,7 @@
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.2.2)</span></h1>
+      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.2.3)</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
@@ -3680,7 +3728,7 @@ function chooseArchetype(key){
     lastDarknessTier: 0,
     barracksExpansions: 0, // roster cap: BARRACKS_BASE_CAP + expansions*BARRACKS_SLOTS_PER_EXPANSION
     retirees: [], // Retirement: one-way, see activeTrainer()
-    patronPage: 'hall', expandedTags: new Set()
+    patronPage: 'town', expandedTags: new Set()
   };
   for(let i=0;i<3+(arch.poolBonus||0);i++) G.candidates.push(genRecruit(candidateBonus()));
   for(let i=0;i<3;i++) G.missions.push(genMission());
@@ -7202,7 +7250,7 @@ function render(){
   document.getElementById('screenVictory').style.display = G.screen==='victory' ? 'block':'none';
   document.getElementById('screenHelp').style.display = G.screen==='help' ? 'block':'none';
   document.getElementById('screenHallOfFame').style.display = G.screen==='hallOfFame' ? 'block':'none';
-  document.getElementById('mainHeader').className = (G.screen==='battle' || G.screen==='deploy') ? 'compact-header' : '';
+  document.getElementById('mainHeader').className = (G.screen==='battle' || G.screen==='deploy') ? 'compact-header' : (G.screen==='patron' ? 'compact-header camp-header' : '');
 
   if(G.screen==='help'){
     renderHelp();
@@ -7255,30 +7303,23 @@ function render(){
     : `<div style="margin-top:6px"><small class="hint">Already paid this cycle -- available again once at least one mission has passed.</small></div>`;
   const titheTag = tappableTag('stat-tithe', `${ic('header_tithe','🏛',24)} Tithe (<b>${titheAmount()}</b> gold) due in <b>${G.titheDue}</b> mission${G.titheDue===1?'':'s'}`, `A recurring payment due every 3 missions to keep the Beacon fed. Miss it, and the Darkness meter surges hard instead of creeping.${titheEarlyButton}`);
   const darkTag = tappableTag('stat-darkness', `${ic('header_darkness','🌑',24)} Darkness <b>${Math.round(G.darknessMeter||0)}</b>/${DARKNESS_MAX}<span class="darkmeter-track"><span class="darkmeter-fill" style="width:${Math.min(100,Math.round(100*(G.darknessMeter||0)/DARKNESS_MAX))}%"></span></span>`, 'Rises with every mission attempted, regardless of outcome. The only way to push it back is paying the tithe. Filling ends the campaign outright.');
+  // v2.2.3 (decided 2026-10-23): the camp header is compact -- Day, Gold, Tithe and
+  // Darkness. Patron, Upkeep, Darkness Removed and the roster count are in the Company
+  // Hall's ledger card (companyLedgerHtml) instead. Each chip still opens its explanation.
+  const titheChip = tappableTag('stat-tithe', `${ic('header_tithe','🏛',24)} <b>${G.titheDue}</b>`, `Tithe of <b>${titheAmount()}</b> gold due in <b>${G.titheDue}</b> mission${G.titheDue===1?'':'s'}. A recurring payment due every 3 missions to keep the Beacon fed. Miss it, and the Darkness meter surges hard instead of creeping.${titheEarlyButton}`);
+  const darkChip = tappableTag('stat-darkness', `${ic('header_darkness','🌑',24)} <b>${Math.round(G.darknessMeter||0)}</b>/${DARKNESS_MAX}`, 'Rises with every mission attempted, regardless of outcome. The only way to push it back is paying the tithe. Filling ends the campaign outright.');
+  const dayChip = tappableTag('stat-day', `${ic('header_day','🕯',24)} Day <b>${G.day}</b>`, 'Advances with every mission attempt (win or lose), or by using "Wait a Day" to pay retainers without embarking.');
+  const goldChip = tappableTag('stat-gold', `${ic('header_gold','💰',24)} <b>${G.gold}</b>`, 'Your treasury. Spent hiring recruits, paying daily upkeep, paying the tithe, and expanding the Barracks.');
   document.getElementById('statChips').innerHTML=`
-    ${portraitBox(G.patron.key, G.patron.name[0], 'portrait-lg')}
-    <div class="chipgroup">
-      <div class="chip">${ic('header_patron','🎖',24)} <b>${G.patron.name}</b></div>
-      <div class="chip">${dayTag.tagHtml}</div>
+    <div class="chipgroup campchips">
+      <div class="chip">${dayChip.tagHtml}</div>
+      <div class="chip">${goldChip.tagHtml}</div>
+      <div class="chip">${titheChip.tagHtml}</div>
+      <div class="chip">${darkChip.tagHtml}</div>
     </div>
-    ${dayTag.panelHtml}
-    <div class="chipdivider"></div>
-    <div class="chipgroup">
-      <div class="chip">${goldTag.tagHtml}</div>
-      <div class="chip">${upkeepTag.tagHtml}</div>
-      <div class="chip">${titheTag.tagHtml}</div>
-    </div>
-    ${goldTag.panelHtml}${upkeepTag.panelHtml}${titheTag.panelHtml}
-    <div class="chipdivider"></div>
-    <div class="chipgroup">
-      <div class="chip">${ic('header_dark_removed','⚑',24)} Darkness Removed <b>${G.templeDarknessReduced||0}</b> — ${tierName(rt)}${nextLabel}</div>
-      <div class="chip">${darkTag.tagHtml}</div>
-    </div>
-    ${darkTag.panelHtml}
-    <div class="chipdivider"></div>
-    <div class="chipgroup">
-      <div class="chip">${ic('header_roster','👥',24)} <b>${G.roster.length}</b> in roster</div>
-    </div>`;
+    ${dayChip.panelHtml}${goldChip.panelHtml}${titheChip.panelHtml}${darkChip.panelHtml}`;
+  // Kept for the Company Hall ledger, which shows the full versions (not stored in G).
+  campLedger = {upkeepTag, titheTag, darkTag, rt, nextLabel};
   }
   if(G.screen==='patron') renderPatron();
   if(G.screen==='deploy') renderDeploy();
@@ -7509,28 +7550,67 @@ function renderNavShell(activePage){
         ? `<div class="log" style="margin-top:8px">${G.log.slice().reverse().map(l=>`<div class="${l.cls}">${l.msg}</div>`).join('')}</div>`
         : (G.log.length ? `<div class="${G.log[G.log.length-1].cls}" style="margin-top:6px;font-size:11px">${G.log[G.log.length-1].msg}</div>` : '<small class="hint">Nothing has happened yet.</small>')}
     </div>`;
+  // v2.2.3 (Phase 4, decided 2026-10-23): the town hub is the camp's home screen; the
+  // page buttons stay as a bar along the bottom, with Town to return to the hub. Region
+  // pages light Territories. A spacer keeps page content clear of the fixed bar.
+  const barPages = [['hall','Company Hall'],['recruitment','Recruitment'],['board','Expedition Board'],['territories','Territories']];
+  const lit = isRegionPage ? 'territories' : activePage;
   return `
+    <div class="breadcrumb" style="margin:0 0 8px 2px">Camp ${isRegionPage?`<span class="sep">/</span> Reclaimed Territories <span class="sep">/</span> <span class="current">${currentLabel}</span>`:`<span class="sep">/</span> <span class="current">${currentLabel}</span>`}</div>
     ${chronicleStrip}
-    <div class="navstrip">
-      <div class="breadcrumb">Camp ${isRegionPage?`<span class="sep">/</span> Reclaimed Territories <span class="sep">/</span> <span class="current">${currentLabel}</span>`:`<span class="sep">/</span> <span class="current">${currentLabel}</span>`}</div>
-      <div class="navpills">
-        ${pages.map(([key,label])=>`<button class="navpill ${activePage===key?'active':''}" ${activePage===key?'':`onclick="gotoPatronPage('${key}')"`}>${label}</button>`).join('')}
+    <nav class="backbar">
+      <button class="backbar-town" onclick="gotoPatronPage('town')">${ic('header_tithe','',24)}<span>Town</span></button>
+      ${barPages.map(([key,label])=>`<button class="${lit===key?'active':''}" ${activePage===key?'':`onclick="gotoPatronPage('${key}')"`}><span>${label}</span></button>`).join('')}
+    </nav>`;
+}
+// v2.2.3: the Town page. The places, what they open and what their plates say are decided
+// here; sprites.js (LL_HUB_HTML) draws the hilltop town around them. Without it, the same
+// places are a plain list.
+function townTargets(){
+  const regionPage = key => G.hasWon ? key : 'territories';
+  return [
+    {id:'company_hall', label:'Company Hall', sub:`${G.roster.length} in roster`, action:"gotoPatronPage('hall')"},
+    {id:'recruitment_hall', label:'Recruitment', sub:`${(G.candidates||[]).length} for hire`, action:"gotoPatronPage('recruitment')"},
+    {id:'expedition_board', label:'Expedition Board', sub:`${(G.missions||[]).length} missions`, action:"gotoPatronPage('board')"},
+    {id:'beacon', label:'The Beacon', sub:`tithe due in ${G.titheDue}`, action:"openBeaconTithe()"},
+    {id:'lands', label:'Beyond the Wall', sub:'Reclaimed Territories', action:"gotoPatronPage('territories')"},
+    {id:'temple', label:'The Temple', sub:G.templeReclaimed?'reclaimed':'lost', action:`gotoPatronPage('${regionPage('temple')}')`, reclaimed:!!G.templeReclaimed},
+    {id:'arena', label:'The Arena', sub:G.arenaReclaimed?'reclaimed':'lost', action:`gotoPatronPage('${regionPage('arena')}')`, reclaimed:!!G.arenaReclaimed}
+  ];
+}
+function renderTownPage(){
+  const targets = townTargets();
+  const hub = (typeof LL_HUB_HTML==='function') ? LL_HUB_HTML(targets) : null;
+  if(hub) return hub;
+  return `
+    <div class="card">
+      <h2>The Town</h2>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${targets.map(t=>`<button style="text-align:left" onclick="${t.action}">${t.label} <small class="hint" style="display:inline">— ${t.sub}</small></button>`).join('')}
       </div>
     </div>`;
 }
+// Tapping the Beacon opens the tithe details (with Pay Tithe Early) in the header.
+function openBeaconTithe(){
+  if(!G.expandedTags) G.expandedTags = new Set();
+  G.expandedTags.add('stat-tithe');
+  render();
+  if(typeof window!=='undefined' && window.scrollTo) window.scrollTo({top:0, behavior:'smooth'});
+}
 function renderPatron(){
   const el=document.getElementById('screenPatron');
-  if(!G.patronPage) G.patronPage = 'hall';
+  if(!G.patronPage) G.patronPage = 'town';
   const page = G.patronPage;
   const regionPages = {temple:1, arena:1};
   if(regionPages[page] && !G.hasWon){ G.patronPage='hall'; return renderPatron(); } // guard against a stale deep link before the capstone is won
+  if(page==='town'){ el.innerHTML = renderTownPage(); return; }
   el.innerHTML = renderNavShell(page) + (
     page==='hall' ? renderCompanyHallPage() :
     page==='recruitment' ? renderRecruitmentOfficePage() :
     page==='board' ? renderExpeditionBoardPage() :
     page==='territories' ? renderTerritoriesPage() :
     renderRegionPage(page)
-  );
+  ) + '<div class="backbar-spacer"></div>';
 }
 function buildCapstoneHtml(){
   const cs = capstoneReady();
@@ -7728,6 +7808,31 @@ function territoryStatus(reclaimedFlag, chainStep, chainLength, unlockReadyFn){
   if(!unlockReadyFn().ready) return 'locked';
   return 'active';
 }
+// v2.2.3: the details that left the camp header -- patron, upkeep, the full tithe
+// line, darkness removed and roster size -- live at the top of the Company Hall.
+var campLedger = null;
+function companyLedgerHtml(){
+  const L = campLedger;
+  if(!L) return '';
+  return `
+    <div class="card ledger">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        ${portraitBox(G.patron.key, G.patron.name[0], 'portrait-lg')}
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1">
+          <div class="chip" style="align-self:flex-start">${ic('header_patron','🎖',24)} <b>${G.patron.name}</b></div>
+          <div class="chipgroup">
+            <div class="chip">${L.upkeepTag.tagHtml}</div>
+            <div class="chip">${ic('header_roster','👥',24)} <b>${G.roster.length}</b> in roster</div>
+          </div>
+        </div>
+      </div>
+      ${L.upkeepTag.panelHtml}
+      <div class="chipgroup" style="margin-top:8px">
+        <div class="chip">${L.titheTag.tagHtml}</div>
+        <div class="chip">${ic('header_dark_removed','⚑',24)} Darkness Removed <b>${G.templeDarknessReduced||0}</b> — ${tierName(L.rt)}${L.nextLabel}</div>
+      </div>
+    </div>`;
+}
 function renderCompanyHallPage(){
   const rosterRows = G.roster.map(r=>{
     const parts = []; // {tagHtml, panelHtml} for every info-bearing tag on this recruit
@@ -7782,6 +7887,7 @@ function renderCompanyHallPage(){
     `Retired veterans train the active roster. ${trainer.name} reduces every active recruit's next level threshold by 1 mission. Only the most recently retired trainer's effect applies -- retiring another trainer replaces this one, it doesn't stack.`,
     'color:var(--good);border-color:var(--good)') : null;
   return `
+    ${companyLedgerHtml()}
     <div class="card">
       <h2>Company Hall</h2>
       <small class="hint">Your standing company. Select up to 3 for the next expedition, manage equipment, or dismiss a recruit. Survivors grow stronger at 2, 5, and 9 missions survived.</small>

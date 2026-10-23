@@ -23,6 +23,10 @@
    Phase 3 (v2.2.2): LL_ICON_HTML / LL_PORTRAIT_HTML / LL_TILE_HTML, which the
      game's ic() / portraitBox() / tic() call to swap emoji, letter portraits and
      Battle Key symbols for the pixel icons, sprite portraits and real tiles.
+   Phase 4 (v2.2.3): LL_HUB_HTML draws the hilltop town as the camp's home screen
+     (places and actions come from the game's townTargets()), scaled to fit the
+     screen height, with the four darkness stages, Temple/Arena lost or reclaimed
+     and the beacon flicker.
    Phase 2 (v2.2.1): idle loops, attack / Heal / Cast Bolt / ability strips,
      Brood Swarm frame, projectiles (arrow, violet bolt), hit flash + shake +
      spark, heal motes, death fade-and-drop, fade-in for new arrivals, elite /
@@ -91,6 +95,7 @@
     class_primal_tigerform:{strike:[2,3,4,5,0], ms:95}, class_primal_bearform:{strike:[2,3,3,0]}
   };
   const ARROW_SHOOTERS = /^(weapon_longbow|class_ranger)/;
+  const DAGGER_THROWERS = /^(weapon_dagger|class_rogue)/;   // range-2 throw: iron for recruits, steel for the Rogue line
 
   // ---------------------------------------------------------------- settings
   const MODES = ['A','B','C'];
@@ -118,6 +123,7 @@
   Object.keys(ART.sprites).forEach(k=>{
     if(/^(floor_\w+_[abc]$|terrain_|class_|weapon_|enemy_|fx_|ui_badge_)/.test(k) && !/_f0$/.test(k)) sprite(k);
     if(/^icon_(?!s$)/.test(k)) sprite(k);
+    if(/^hub_(background|never_dark_mask|company_hall|recruitment_hall|expedition_board|temple_lost|temple_reclaimed|arena_lost|arena_reclaimed|beacon_flicker)$/.test(k)) sprite(k);
   });
   function frameCount(rec){ return rec.meta.frames || 1; }
   // One frame of a strip as its own small canvas (cached).
@@ -384,9 +390,9 @@
       const anim = startAction(a, t, 'strike');
       let land = now + impactDelay(anim);
       const key = a && unitKey(a);
-      if(a && t && key && ARROW_SHOOTERS.test(key) && Math.max(Math.abs(t.x-a.x),Math.abs(t.y-a.y))>1){
-        land = addProjectile('arrow', a, t, land);
-      }
+      const far = a && t && Math.max(Math.abs(t.x-a.x),Math.abs(t.y-a.y))>1;
+      if(far && key && ARROW_SHOOTERS.test(key)) land = addProjectile('arrow', a, t, land);
+      else if(far && key && DAGGER_THROWERS.test(key)) land = addProjectile(key.indexOf('class_')===0 ? 'dagger_steel' : 'dagger_iron', a, t, land);
       expectImpact(t, land, 'fx_hit');
     } else if(type==='cast'){
       const a = realUnit(data.caster), t = realUnit(data.target);
@@ -705,11 +711,12 @@
         } else {
           const ang = Math.atan2(ddy, ddx), oct = ((Math.round(ang/(Math.PI/4)) % 8) + 8) % 8;
           // 0:right 1:down-right 2:down 3:down-left 4:left 5:up-left 6:up 7:up-right
+          const base = e.kind==='arrow' ? 'fx_arrow' : 'fx_'+e.kind;   // fx_arrow_level/_diag, fx_dagger_iron(_diag), fx_dagger_steel(_diag)
           if(oct % 2 === 0){
-            rec = sprite('fx_arrow_level');            // art points left
+            rec = sprite(e.kind==='arrow' ? 'fx_arrow_level' : base);   // art points left
             o = {0:{flipX:true}, 2:{rot:-1}, 4:{}, 6:{rot:1}}[oct];
           } else {
-            rec = sprite('fx_arrow_diag');             // art points down-left
+            rec = sprite(base+'_diag');                 // art points down-left
             o = {1:{flipX:true}, 3:{}, 5:{flipY:true}, 7:{flipX:true, flipY:true}}[oct];
           }
           if(!rec) return true;
@@ -799,6 +806,168 @@
     }
     return null;
   };
+
+  // ---------------------------------------------------------------- camp hub (Phase 4)
+  const HUB = ART.hub || null;
+  const HUB_W = HUB ? HUB.canvas[0] : 192, HUB_H = HUB ? HUB.canvas[1] : 416;
+  // Tap areas in art pixels: the halls, Temple and Arena from hub_manifest.json; the
+  // beacon (tower top + flame) and the land between Temple and Arena are added here.
+  function hubBoxes(){
+    const b = {};
+    if(!HUB) return b;
+    Object.entries(HUB.sprites).forEach(([k,v])=>{ b[k] = v.hit; });
+    b.temple = HUB.temple.hit; b.arena = HUB.arena.hit;
+    b.beacon = [130, 4, 40, 70];
+    b.lands = [70, 336, 48, 62];
+    return b;
+  }
+  // Darkness stages (approved 2026-10-21; recipe ported from hub_darkness.py):
+  // 0–8 held at the wall, 9–16 the wall falls, 17–24 the middle terraces, 25–33 last
+  // stand. Sky, distant spire, tower top and flame never darken (hub_never_dark_mask).
+  const HUB_CUTS = [342, 300, 208, 150];
+  function hubStage(d){ d = d||0; return d<=8 ? 0 : d<=16 ? 1 : d<=24 ? 2 : 3; }
+  const B4 = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+  const hubCache = new Map();
+  function hexRGB(h){ return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+  function hubComposite(stage, templeR, arenaR){
+    const id = stage+'|'+templeR+'|'+arenaR;
+    if(hubCache.has(id)) return hubCache.get(id);
+    const need = ['hub_background','hub_never_dark_mask','hub_company_hall','hub_recruitment_hall','hub_expedition_board',
+      templeR?'hub_temple_reclaimed':'hub_temple_lost', arenaR?'hub_arena_reclaimed':'hub_arena_lost'];
+    const recs = need.map(k=>sprite(k));
+    if(recs.some(r=>!r)) return null;
+    const c = document.createElement('canvas'); c.width = HUB_W; c.height = HUB_H;
+    const x = c.getContext('2d', {willReadFrequently:true});
+    x.drawImage(recs[0].img, 0, 0);
+    Object.entries(HUB.sprites).forEach(([k,v])=>{ const r = sprite('hub_'+k); if(r) x.drawImage(r.img, v.x, v.y); });
+    x.drawImage(recs[5].img, HUB.temple.x, HUB.temple.y);
+    x.drawImage(recs[6].img, HUB.arena.x, HUB.arena.y);
+    const base = x.getImageData(0,0,HUB_W,HUB_H), px = base.data;
+    const m = document.createElement('canvas'); m.width = HUB_W; m.height = HUB_H;
+    const mx = m.getContext('2d', {willReadFrequently:true}); mx.drawImage(recs[1].img, 0, 0);
+    const mask = mx.getImageData(0,0,HUB_W,HUB_H).data;
+    const glowCols = new Set([PAL.y, PAL.E, PAL.h].map(h=>hexRGB(h).join(',')));
+    const darkCols = new Set([PAL.S, PAL.O, '#5e574e'].map(h=>hexRGB(h).join(',')));
+    // reclaimed buildings stay warm pockets: only their own opaque pixels
+    const alphaOf = (rec)=>{ const t = document.createElement('canvas'); t.width = rec.img.width; t.height = rec.img.height;
+      const tx = t.getContext('2d', {willReadFrequently:true}); tx.drawImage(rec.img, 0, 0); return tx.getImageData(0,0,t.width,t.height); };
+    const tA = templeR ? alphaOf(recs[5]) : null, aA = arenaR ? alphaOf(recs[6]) : null;
+    const opaque = (d, o, X, Y)=>{ const lx = X-o.x, ly = Y-o.y; return lx>=0 && ly>=0 && lx<d.width && ly<d.height && d.data[(ly*d.width+lx)*4+3] > 0; };
+    const warm = (X,Y)=> (tA && opaque(tA, HUB.temple, X, Y)) || (aA && opaque(aA, HUB.arena, X, Y));
+    const y0 = HUB_CUTS[stage];
+    const cut = X => y0 - 14*Math.pow((X-96)/96, 2);
+    const orig = new Uint8ClampedArray(px);
+    for(let Y=0; Y<HUB_H; Y++) for(let X=0; X<HUB_W; X++){
+      const i = (Y*HUB_W+X)*4;
+      if(mask[i] > 127) continue;                       // never-dark: sky, spire, tower top, flame
+      if(X>=134 && X<166 && Y<44) continue;
+      const e = cut(X), b = B4[Y%4][X%4]/16*6;
+      const r = px[i], g = px[i+1], bl = px[i+2];
+      if(Y+b < e){
+        const d = Math.hypot((X-150)*0.8, Y-22), t = Math.max(0, 0.12 - d/2600);
+        px[i] = r*(1-t)+245*t; px[i+1] = g*(1-t)+207*t; px[i+2] = bl*(1-t)+122*t;
+        continue;
+      }
+      const glow = glowCols.has(r+','+g+','+bl);
+      let f, tt;
+      if(Y+b < e+22){ [f,tt] = glow ? [0.85,0.05] : [0.5,0.24]; }
+      else          { [f,tt] = glow ? [0.6,0.1] : [0.17,0.16]; }
+      if(warm(X,Y)){ f = Math.max(f, 0.8); tt = Math.min(tt, 0.06); }
+      px[i] = r*f*(1-tt)+75*tt; px[i+1] = g*f*(1-tt)+58*tt; px[i+2] = bl*f*(1-tt)+112*tt;
+    }
+    // eyes gather just below the edge of the light (14 pairs, fixed per stage)
+    let seed = (stage+1)*2654435761 >>> 0;
+    const rnd = ()=>{ seed = (seed + 0x6D2B79F5) >>> 0; let t = Math.imul(seed ^ seed>>>15, 1|seed); t = (t + Math.imul(t ^ t>>>7, 61|t)) ^ t; return ((t ^ t>>>14) >>> 0)/4294967296; };
+    const eyeCols = [PAL.C, '#c8604a', PAL.E, PAL.C].map(hexRGB);
+    for(let n=0, tries=0; n<14 && tries<4000; tries++){
+      const X = 3 + Math.floor(rnd()*184), lo = Math.floor(cut(X))+26;
+      if(lo >= 414) continue;
+      const Y = lo + Math.floor(rnd()*(415-lo));
+      if(Y>=414) continue;
+      const i = (Y*HUB_W+X)*4, j = i+8;
+      if(mask[i] > 127) continue;
+      const k1 = orig[i]+','+orig[i+1]+','+orig[i+2], k2 = orig[j]+','+orig[j+1]+','+orig[j+2];
+      if(!darkCols.has(k1) || !darkCols.has(k2)) continue;
+      const col = eyeCols[Math.floor(rnd()*eyeCols.length)];
+      [i,j].forEach(q=>{ px[q]=col[0]; px[q+1]=col[1]; px[q+2]=col[2]; });
+      n++;
+    }
+    x.putImageData(base, 0, 0);
+    hubCache.set(id, c);
+    return c;
+  }
+  // The Town page's markup. Positions are in art pixels times --hub-s, which the
+  // layout code sets so the whole town fits the screen height (option 1, 2026-10-23).
+  window.LL_HUB_HTML = function(targets){
+    if(!HUB) return null;
+    const boxes = hubBoxes();
+    const hits = targets.filter(t=>boxes[t.id]).map(t=>{
+      const [x,y,w,h] = boxes[t.id];
+      return `<button class="hub-hit" aria-label="${t.label}" onclick="${t.action}" style="left:calc(var(--hub-s)*${x}px);top:calc(var(--hub-s)*${y}px);width:calc(var(--hub-s)*${w}px);height:calc(var(--hub-s)*${h}px)"></button>`;
+    }).join('');
+    const plates = targets.filter(t=>boxes[t.id]).map(t=>{
+      const [x,y,w,h] = boxes[t.id];
+      const cx = Math.max(30, Math.min(HUB_W-30, x+w/2));
+      const py = t.id==='beacon' ? y+h-6 : t.id==='lands' ? y-14 : Math.min(HUB_H-16, y+h+1);
+      const dim = (t.id==='temple'||t.id==='arena') && !t.reclaimed;
+      return `<div class="hub-plate${dim?' dim':''}" onclick="${t.action}" style="left:calc(var(--hub-s)*${cx}px);top:calc(var(--hub-s)*${py}px)">${t.label}<small>${t.sub}</small></div>`;
+    }).join('');
+    return `<div class="llhub-wrap"><div class="llhub" style="--hub-s:2"><canvas class="llhub-canvas" aria-hidden="true"></canvas>${hits}${plates}</div></div>`;
+  };
+  let hubLastSig = '';
+  function hubScale(el){
+    const header = document.getElementById('mainHeader');
+    const top = header ? header.getBoundingClientRect().bottom + window.scrollY : 0;
+    const availH = window.innerHeight - top - 16;
+    const wrap = el.parentNode;
+    const availW = (wrap && wrap.clientWidth) || window.innerWidth;
+    let s = Math.min(availH/HUB_H, availW/HUB_W);
+    if(s >= 2) s = Math.min(3, Math.floor(s));    // room to spare: whole multiples stay crisp
+    return Math.max(1, s);
+  }
+  function drawHub(now){
+    const el = document.querySelector('#screenPatron .llhub');
+    if(!el || !G || G.screen!=='patron') return;
+    const s = hubScale(el);
+    el.style.setProperty('--hub-s', s);
+    el.classList.toggle('tiny', s < 1.45);
+    const cv = el.querySelector('canvas');
+    const dpr = window.devicePixelRatio || 1;
+    const W = Math.round(HUB_W*s*dpr), H = Math.round(HUB_H*s*dpr);
+    if(cv.width!==W || cv.height!==H){ cv.width = W; cv.height = H; }
+    cv.style.width = (HUB_W*s)+'px'; cv.style.height = (HUB_H*s)+'px';
+    const comp = hubComposite(hubStage(G.darknessMeter), !!G.templeReclaimed, !!G.arenaReclaimed);
+    const x = cv.getContext('2d');
+    x.imageSmoothingEnabled = false;
+    if(!comp){ x.fillStyle = '#000'; x.fillRect(0,0,W,H); return; }
+    x.drawImage(comp, 0, 0, W, H);
+    // beacon flicker (irregular order and timings from the manifest)
+    const fl = HUB.beacon_flicker, rec = sprite('hub_beacon_flicker');
+    if(rec){
+      let f = 0;
+      if(!reduceMotion.matches){
+        const total = fl.durations_ms.reduce((a,b)=>a+b,0);
+        let t = now % total, i = 0;
+        while(t >= fl.durations_ms[i]){ t -= fl.durations_ms[i]; i++; }
+        f = fl.sequence[i];
+      }
+      const k = W / HUB_W;
+      x.drawImage(rec.img, f*fl.frame_w, 0, fl.frame_w, fl.frame_h, fl.x*k, fl.y*k, fl.frame_w*k, fl.frame_h*k);
+    }
+  }
+  let hubLast = 0;
+  function hubTick(now){
+    requestAnimationFrame(hubTick);
+    if(!HUB || !G || G.screen!=='patron' || G.patronPage!=='town') return;
+    if(now - hubLast < 60) return;               // the flicker steps at 90–150ms
+    hubLast = now;
+    try{ drawHub(now); }catch(e){ console.error('[Last Light art] hub', e); }
+  }
+  requestAnimationFrame(hubTick);
+  const hubMO = new MutationObserver(()=>{ try{ drawHub(performance.now()); }catch(e){} });
+  const patronEl = document.getElementById('screenPatron');
+  if(patronEl) hubMO.observe(patronEl, {childList:true});
+  window.addEventListener('resize', ()=>{ try{ drawHub(performance.now()); }catch(e){} });
 
   // ---------------------------------------------------------------- canvas + layout
   let lastGrid = null, lastSig = '', lastDraw = 0, errorCount = 0, busy = false;
