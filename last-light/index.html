@@ -3,7 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>LAST LIGHT: LEAN v1 (engine v2.2.3)</title>
+<meta name="theme-color" content="#0a0908">
+<link rel="icon" type="image/png" sizes="32x32" href="art/appicon/web/favicon_32.png">
+<link rel="apple-touch-icon" href="art/appicon/web/icon_180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>LAST LIGHT: LEAN v1 (engine v2.2.4)</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -26,13 +30,33 @@
   forward verbatim underneath it.
   ===========================================================================
 
+  LAST LIGHT -- v2.2.4
+  Art wiring, Phase 5 of 5 (title and polish).
+  - Render, platform and packaging code only. Seeded run: 480 harness
+    trials identical to v2.2.3 (hash c53f858e...).
+  - Scene A title screen: the beacon mark, "Last Light" in IM Fell English
+    SC, the beacon scene (phone and desktop), the quote, Light the Beacon
+    and How to Play. The page header is hidden on it. The two lore
+    paragraphs that were on the old landing card now open the primer.
+  - Fonts bundled in fonts/ (SIL Open Font License): IM Fell English SC,
+    IM Fell English italic, Alegreya Sans and Alegreya Sans SC (title
+    screen only; the body font is still open, so the rest stays Courier).
+  - unlockAudio() in platform.js: the first tap/click/key unlocks sound on
+    phones (no sounds yet; they play through LL_AUDIO()).
+  - Touch pass: no double-tap zoom; buttons at least 44 px tall on phones
+    (header utility buttons excepted); the battle action popup's icons are
+    44x44 with aria-labels and open below the unit for the top four rows;
+    the Retire / Keep as Trainer and Wait a Day explanations are shown as
+    text instead of hover-only tooltips.
+  - Favicon, Apple touch icon and a web-app manifest from the B2 app icon.
+  - tools/make_single.py builds the one-file version (everything inlined).
+
   LAST LIGHT -- v2.2.3
   Art wiring, Phase 4 of 5 (the camp hub as home).
   - Render and navigation code only. Seeded run: 480 harness trials
     identical to v2.2.2 (hash c53f858e...).
-  - The hilltop town is the camp's home screen. New campaigns open on it;
-    after a mission the game still lands on Company Hall (v2.0.4 rationale),
-    with Town one tap away. Buildings are tap areas with name plates; the
+  - The hilltop town is the camp's home screen. New campaigns open on it,
+    and missions (and a cancelled deployment) return to it. Buildings are tap areas with name plates; the
     town darkens in four stages with the Darkness meter, and a reclaimed
     Temple or Arena stays lit. Without sprites.js the Town page is a plain
     list of the same places.
@@ -2614,13 +2638,67 @@
     body.ll-art .battlegrid-card > :not(.gridwrap){margin-left:10px;margin-right:10px}
     body.ll-art .gridwrap{padding:0;border:0}
   }
+  /* --- Phase 5 (v2.2.4): bundled fonts. IM Fell English SC is the title face (chosen
+     2026-10-21); Alegreya Sans is used on the title screen only, as in the approved
+     Scene A mock -- the body font for the rest of the game is still an open question,
+     so everything else stays Courier New. Bundled rather than Google Fonts so the
+     packaged app works offline. */
+  @font-face{font-family:'IM Fell English SC';src:url(fonts/im-fell-english-sc-latin-400-normal.woff2) format('woff2');font-weight:400;font-style:normal;font-display:swap}
+  @font-face{font-family:'IM Fell English';src:url(fonts/im-fell-english-latin-400-italic.woff2) format('woff2');font-weight:400;font-style:italic;font-display:swap}
+  @font-face{font-family:'Alegreya Sans';src:url(fonts/alegreya-sans-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
+  @font-face{font-family:'Alegreya Sans';src:url(fonts/alegreya-sans-latin-500-normal.woff2) format('woff2');font-weight:500;font-display:swap}
+  @font-face{font-family:'Alegreya Sans SC';src:url(fonts/alegreya-sans-sc-latin-500-normal.woff2) format('woff2');font-weight:500;font-display:swap}
+  @font-face{font-family:'Alegreya Sans SC';src:url(fonts/alegreya-sans-sc-latin-700-normal.woff2) format('woff2');font-weight:700;font-display:swap}
+
+  /* --- Phase 5: Scene A title screen (Landing Screens canvas, direction A). The page
+     header is hidden on it. Phone scene 336x432 at 1x, shrinking on short screens;
+     the 1080x504 desktop scene only where it fits. */
+  header.title-header{display:none}
+  .titlescreen{display:flex;flex-direction:column;align-items:center;gap:16px;padding:calc(18px + env(safe-area-inset-top)) 0 calc(18px + env(safe-area-inset-bottom));font-family:'Alegreya Sans',sans-serif;color:var(--bone);text-align:center}
+  .titlescreen .t-head{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .titlescreen .t-mark{width:32px;height:32px;image-rendering:pixelated;display:block}
+  .titlescreen .t-mark-text{font-size:26px;color:var(--ember);line-height:32px}
+  .titlescreen h1{margin:0;font-family:'IM Fell English SC',serif;font-weight:400;font-size:36px;letter-spacing:3px;line-height:1;color:var(--bone)}
+  .titlescreen .t-sub{font-family:'Alegreya Sans SC',sans-serif;font-weight:500;font-size:14px;letter-spacing:2px;color:var(--ash)}
+  .titlescreen .t-scene{display:block;image-rendering:pixelated;border:1px solid var(--line);height:min(432px, max(216px, calc(100svh - 372px)));width:auto;max-width:100%}
+  .titlescreen .t-scene.desk{display:none}
+  .titlescreen .t-quote{margin:0;font-family:'IM Fell English',serif;font-style:italic;font-size:17px;color:#a39a8d}
+  .titlescreen .t-actions{display:flex;flex-direction:column;gap:10px;width:min(336px,100%)}
+  .titlescreen .t-actions button{font-family:'Alegreya Sans SC',sans-serif;letter-spacing:2px;border-radius:2px;min-height:48px}
+  .titlescreen .t-go{background:var(--ember);color:var(--void);border-color:var(--ember);font-weight:700;font-size:18px}
+  .titlescreen .t-go:hover{background:#f0b552}
+  .titlescreen .t-help{background:transparent;font-weight:500;font-size:16px}
+  .titlescreen .t-foot{font-size:13px;color:var(--ash);line-height:1.5}
+  @media (min-width:1120px) and (min-height:900px){
+    .titlescreen{gap:18px;padding-top:36px}
+    .titlescreen .t-mark{width:64px;height:64px}
+    .titlescreen h1{font-size:64px;letter-spacing:6px}
+    .titlescreen .t-sub{font-size:17px;letter-spacing:3px}
+    .titlescreen .t-scene.phone{display:none}
+    .titlescreen .t-scene.desk{display:block;width:1080px;height:504px}
+    .titlescreen .t-quote{font-size:20px}
+    .titlescreen .t-actions{flex-direction:row;width:auto}
+    .titlescreen .t-actions button{padding:14px 34px}
+    .titlescreen .t-foot{font-size:14px}
+  }
+
+  /* --- Phase 5: touch pass. No double-tap zoom anywhere; buttons at least 44 px tall on
+     phones (Apple's tap-size guideline) except the header's utility buttons, the battle action popup's icon buttons 44x44. */
+  html{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  @media (max-width:647px){
+    button{min-height:44px}
+    header button{min-height:0}   /* Help / New Campaign / grid-size switch: utility buttons, kept compact */
+    .actpop button{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+    .actpop{max-width:150px!important}
+  }
+  .hint.why{display:block;margin-top:6px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.2.3)</span></h1>
+      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.2.4)</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
@@ -7217,7 +7295,10 @@ function returnToPatron(page){
   // param added (v2.1.9) so the capstone victory screen can send the player straight to
   // Reclaimed Territories instead -- every other call site omits it and gets the
   // original 'hall' default, unaffected.
-  G.patronPage = page || 'hall';
+  // v2.2.3 (Randall, 2026-10-23): with the town hub as the camp's home, missions now
+  // return to the town instead of Company Hall. Training choices are still resolved on
+  // the result screen before this runs, and Company Hall is one tap away.
+  G.patronPage = page || 'town';
   render();
 }
 // Cancelling a deployed-but-not-yet-fought expedition does NOT advance a day -- no
@@ -7250,7 +7331,7 @@ function render(){
   document.getElementById('screenVictory').style.display = G.screen==='victory' ? 'block':'none';
   document.getElementById('screenHelp').style.display = G.screen==='help' ? 'block':'none';
   document.getElementById('screenHallOfFame').style.display = G.screen==='hallOfFame' ? 'block':'none';
-  document.getElementById('mainHeader').className = (G.screen==='battle' || G.screen==='deploy') ? 'compact-header' : (G.screen==='patron' ? 'compact-header camp-header' : '');
+  document.getElementById('mainHeader').className = (G.screen==='battle' || G.screen==='deploy') ? 'compact-header' : (G.screen==='patron' ? 'compact-header camp-header' : (G.screen==='landing' ? 'title-header' : ''));
 
   if(G.screen==='help'){
     renderHelp();
@@ -7335,15 +7416,31 @@ function render(){
 // screen without scrolling, so the house-specific lines moved to each archetype card's
 // existing flavor slot instead, landing at the moment of the actual decision rather
 // than being read-and-forgotten a screen earlier.
+// v2.2.4 (Art wiring Phase 5): the Scene A title screen (direction chosen 2026-10-21,
+// Landing Screens canvas): the beacon mark, "Last Light" in IM Fell English SC, the
+// beacon scene, the quote, then Light the Beacon (-> the primer) and How to Play. The
+// two lore paragraphs that sat here open the primer instead. Without sprites.js the
+// same layout shows a text mark and no scene.
 function renderLanding(){
   const el=document.getElementById('screenLanding');
+  const art = (typeof LL_TITLE_ART==='function') ? LL_TITLE_ART() : null;
+  const ver = ((document.title||'').match(/v\d+\.\d+\.\d+/)||[''])[0];
+  const sceneAlt = 'A squad stands around a tall burning beacon on ruined flagstones; beasts wait at the edge of the light, and eyes glint in the dark beyond.';
   el.innerHTML = `
-    <div class="card">
-      <h2>The Last Light</h2>
-      <p><i>The dark does not hurry. It has never needed to.</i></p>
-      <p>It has watched companies rise and fall for longer than the Beacon has had a name for what it's holding back. It has learned patience the way water learns stone — one tithe missed, one company disbanded, and it moves that much closer.</p>
-      <p>It isn't waiting for you specifically. It's simply still waiting. What you do about that is the only part of this story that hasn't already been written.</p>
-      <button class="primary" onclick="beginPrimer()">Choose Your Company</button>
+    <div class="titlescreen">
+      <div class="t-head">
+        ${art ? `<img class="t-mark" src="${art.beacon}" alt="" draggable="false">` : `<div class="t-mark-text">✦</div>`}
+        <h1>Last Light</h1>
+        <div class="t-sub">A tactical RPG against the dark</div>
+      </div>
+      ${art ? `<img class="t-scene phone" src="${art.phone}" alt="${sceneAlt}" draggable="false">` : ''}
+      ${art && art.desktop ? `<img class="t-scene desk" src="${art.desktop}" alt="${sceneAlt}" draggable="false">` : ''}
+      <p class="t-quote">“The dark does not hurry. It has never needed to.”</p>
+      <div class="t-actions">
+        <button class="t-go" onclick="beginPrimer()">Light the Beacon</button>
+        <button class="t-help" onclick="openHelp()">How to Play</button>
+      </div>
+      <div class="t-foot">Progress isn't saved${ver?' · engine '+ver:''}</div>
     </div>`;
 }
 // Primer screen (onboarding improvement, mockup-approved): a skippable one-minute
@@ -7353,6 +7450,11 @@ function renderLanding(){
 function renderPrimer(){
   const el=document.getElementById('screenPrimer');
   el.innerHTML = `
+    <div class="card">
+      <p style="margin-top:0"><i>The dark does not hurry. It has never needed to.</i></p>
+      <p>It has watched companies rise and fall for longer than the Beacon has had a name for what it's holding back. It has learned patience the way water learns stone — one tithe missed, one company disbanded, and it moves that much closer.</p>
+      <p style="margin-bottom:0">It isn't waiting for you specifically. It's simply still waiting. What you do about that is the only part of this story that hasn't already been written.</p>
+    </div>
     <div class="card">
       <h2>Before You Begin</h2>
       <small class="hint">A one-minute primer. Skip it anytime — everything here is also in Help, top of every screen.</small>
@@ -7876,6 +7978,7 @@ function renderCompanyHallPage(){
           return `<div style="display:flex;flex-direction:column;gap:4px">
             <button onclick="fireRecruit(${r.id})" title="Leaves the company for good, no trainer bonus" style="color:var(--blood);border-color:var(--blood)">Retire</button>
             <button onclick="retireAsTrainer(${r.id})" title="Leaves the field but trains the active roster -- see Company Hall header" style="color:var(--good);border-color:var(--good)">Keep as Trainer</button>
+            <small class="hint why">Retire: leaves the company for good, no trainer bonus. Keep as Trainer: leaves the field but trains the active roster.</small>
           </div>`;
         })()}
       </div>
@@ -7903,6 +8006,7 @@ function renderCompanyHallPage(){
         <button class="subtle" onclick="advanceDayAction()" title="Skip a day without embarking -- pays retainers, lets wounds mend, no mission attempted">${ic('page_wait_day','☀',24)} Wait a Day (pay retainers)</button>
         <button class="subtle" onclick="openHallOfFame()">${ic('page_hall_of_fame','🏆',24)} Hall of Fame</button>
       </p>
+      <small class="hint">Wait a Day skips a day without embarking: retainers are paid and wounds mend, but no mission is attempted.</small>
     </div>`;
 }
 function renderRecruitmentOfficePage(){
@@ -8183,12 +8287,14 @@ function renderBattle(){
     const isActiveUnitCell = u && x===u.x && y===u.y;
     if(isActiveUnitCell && b.actionMenuFor===u.id){
       const popupActions = getUnitActionsForPopup(u);
-      const vertPos = y<=1 ? 'top:100%;margin-top:4px' : 'bottom:100%;margin-bottom:4px';
+      // v2.2.4: the popup can be two rows of 44 px buttons on phones, so it opens below
+      // the unit for the top four rows (was two).
+      const vertPos = y<=3 ? 'top:100%;margin-top:4px' : 'bottom:100%;margin-bottom:4px';
       const horizPos = x<=1 ? 'left:0' : x>=GW-2 ? 'right:0' : 'left:50%;transform:translateX(-50%)';
-      popupHtml = `<div style="position:absolute;${vertPos};${horizPos};z-index:50;background:var(--panel2);border:1px solid var(--ember);border-radius:6px;padding:4px;display:flex;gap:3px;flex-wrap:wrap;width:max-content;max-width:160px;box-shadow:0 2px 8px rgba(0,0,0,0.6)">
+      popupHtml = `<div class="actpop" style="position:absolute;${vertPos};${horizPos};z-index:50;background:var(--panel2);border:1px solid var(--ember);border-radius:6px;padding:4px;display:flex;gap:3px;flex-wrap:wrap;width:max-content;max-width:160px;box-shadow:0 2px 8px rgba(0,0,0,0.6)">
         ${popupActions.map(a=>{
           const handler = a.endTurn ? `popupEndTurn()` : a.instant ? `popupUseSkillInstant('${a.instant}')` : `popupSetMode('${a.mode}')`;
-          return `<button title="${a.title}" ${a.disabled?'disabled':''} onclick="event.stopPropagation();${handler}" style="padding:4px 7px;font-size:1.1em;line-height:1">${a.icon}</button>`;
+          return `<button title="${a.title}" aria-label="${a.title}" ${a.disabled?'disabled':''} onclick="event.stopPropagation();${handler}" style="padding:4px 7px;font-size:1.1em;line-height:1">${a.icon}</button>`;
         }).join('')}
       </div>`;
     }

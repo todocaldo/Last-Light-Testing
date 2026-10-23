@@ -763,6 +763,14 @@
     sprite('icon_'+key);
     return imgTag(meta.src, size||12, 'llicon');
   };
+  // Phase 5 (v2.2.4): the title screen's art (Scene A). Returns the image paths, or
+  // null when the manifest has none; the game then shows the text-only title.
+  window.LL_TITLE_ART = function(){
+    const S = ART.sprites, ok = k => S[k] && !(images[k] && images[k].state==='missing');
+    if(!ok('title_scene_phone') || !ok('beacon32')) return null;
+    return { beacon: S.beacon32.src, phone: S.title_scene_phone.src,
+             desktop: ok('title_scene_desktop') ? S.title_scene_desktop.src : null };
+  };
   window.LL_PORTRAIT_HTML = function(key, sizeClass){
     if(!key) return null;
     const px = sizeClass==='portrait-lg' ? 48 : 24;

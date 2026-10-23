@@ -1,0 +1,14 @@
+{
+  "name": "Last Light",
+  "short_name": "Last Light",
+  "description": "A tactical RPG against the dark.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0908",
+  "theme_color": "#0a0908",
+  "icons": [
+    { "src": "art/appicon/web/icon_192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "art/appicon/web/icon_512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

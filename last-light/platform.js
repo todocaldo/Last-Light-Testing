@@ -22,7 +22,7 @@
    stays a deliberate button); in a battle or deploy the browser back gesture and
    the Android back button are swallowed rather than leaving the page or app.
    Returns true when it handled the back.
-   Phase 5 adds unlockAudio() here.
+   Phase 5 (v2.2.4) adds unlockAudio() (see below).
    ============================================================================ */
 (function(){
   'use strict';
@@ -76,5 +76,35 @@
     const App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
     if(App && App.addListener) App.addListener('backButton', ()=>{ if(!goBack() && !inFight() && App.exitApp) App.exitApp(); });
   }catch(e){}
+  // Phase 5 (v2.2.4): unlockAudio(). Phone browsers (iOS Safari above all) keep a page
+  // silent until the player has touched it, and an audio context made before that can
+  // stay muted for good. The first tap, click or key anywhere creates (or resumes) one
+  // shared AudioContext and plays a one-sample silent buffer, which is what iOS needs.
+  // The game has no sound yet; when it does, it plays through LL_AUDIO(). iOS also
+  // suspends audio when the app goes to the background, so it's resumed on return.
+  let audioCtx = null;
+  function unlockAudio(){
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return null;
+      if(!audioCtx) audioCtx = new AC();
+      if(audioCtx.state==='suspended' && audioCtx.resume) audioCtx.resume();
+      const buf = audioCtx.createBuffer(1, 1, 22050), src = audioCtx.createBufferSource();
+      src.buffer = buf; src.connect(audioCtx.destination); (src.start ? src.start(0) : src.noteOn(0));
+    }catch(e){}
+    return audioCtx;
+  }
+  window.unlockAudio = unlockAudio;
+  window.LL_AUDIO = () => audioCtx;
+  const firstTouch = ['pointerdown','touchend','keydown'];
+  function onFirstTouch(){
+    unlockAudio();
+    if(audioCtx && audioCtx.state==='running') firstTouch.forEach(ev=>document.removeEventListener(ev, onFirstTouch, true));
+  }
+  firstTouch.forEach(ev=>document.addEventListener(ev, onFirstTouch, true));
+  document.addEventListener('visibilitychange', ()=>{
+    try{ if(!document.hidden && audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }catch(e){}
+  });
+
   window.LL_PLATFORM = { native: !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) };
 })();
