@@ -20,6 +20,853 @@ _Nothing staged yet._
 
 ---
 
+## [v2.2.6] — Fix: Tier 3 Boss Hunt Bosses Were Nearly Harmless (Minor)
+
+### Fixed
+- **Tier 3 Boss Hunt bosses (the Binder and the Spitter) had their stats cut to a
+  tenth.** `BOSSHUNT_TIER_MULT` applied 0.10 to the T3 boss's HP, ATK and DEF.
+  - Result: a T3 boss averaged about **4.5 HP / 1 ATK / 1 DEF** (Binder) or
+    **6 / 1 / 0.4** (Spitter). That is weaker than an ordinary Binder
+    (14 / 6 / 4), while T2 bosses average about 30 HP and T4 about 60.
+  - **Cause:** the 0.10 was tuned in v2.1.5 against the testing harness, whose
+    `buildMission` still spawned **8** T3 minions after the game itself had
+    dropped to **5** in the same release. The boss was crushed to make up for
+    three minions that never appear in play. With the real 5 minions, T3 Boss
+    Hunt measured 97.5% wins with a pushover boss.
+- **New tuning** (harness, Lv2 squads, the real 5 minions):
+  - The T3 multiplier is now **0.60**.
+  - ATK and DEF use the same multiplier but never drop below the ordinary
+    archetype's values, so a boss is never weaker than the regular enemy.
+    (In practice this only matters at T3.)
+  - A T3 Binder boss now averages **~27 HP / 6.6 ATK / 4.2 DEF**, and a Spitter
+    boss **~37 / 5.4 / 2.4**.
+- The Boss Hunt minion counts are now a named constant, `BOSSHUNT_ENEMY_COUNT`.
+  The harness's `buildMission` reads it instead of keeping its own copy, so the
+  two can't drift apart again.
+
+### Verified
+- `assertHarnessIntegrity()`: all clear.
+- Tier 3 Boss Hunt win rate by multiplier (with the ATK/DEF floor, N=400 per
+  run):
+
+  | T3 multiplier | Win rate |
+  |---|---|
+  | 0.50 | ~93% |
+  | **0.60** | **89.5% and 84.3% (two runs), 84.0% on the final build (N=300)** |
+  | 0.70 | ~73% |
+
+- All four tiers on the final build (N=300 each): **T1 91%, T2 87%, T3 84%,
+  T4 83%**. T1, T2 and T4 match their pre-change readings within noise.
+- Seeded comparison against v2.2.5: every trial before Boss Hunt T3 (explore,
+  defense, and Boss Hunt T1–T2) is identical. Only T3 Boss Hunt changes.
+- Browser, on the exact upload set: four AI-played battles, the title, the town
+  hub, and the full region path (Temple and Arena unlocked, fought, reclaimed,
+  then the Final Trial offered). Zero console errors.
+
+### Known Issues
+- This pass followed the project's tuning convention of squads at veteran level
+  tier − 1, so T3 was tested with Lv2 squads. A weaker real squad will find T3
+  harder than before, by design: the boss now actually fights back.
+
+---
+
+## [v2.2.5] — Fix: The Temple and Arena Could Never Be Entered (Minor)
+
+### Fixed
+- **The Temple and the Arena stayed locked after meeting their requirements,
+  which blocked the rest of the campaign.** Since v2.1.11 the Final Trial
+  needs both regions reclaimed first ("the reclaim sequence now runs before
+  the capstone by design"), but three older gates still only opened the regions
+  *after* the Final Trial was won (`G.hasWon`):
+  - `buildTempleHtml()` and `buildArenaHtml()` returned an empty page;
+  - `renderPatron()` sent any region page back to Company Hall.
+
+  So a region's Territories tile showed **Enter →** once its requirement was
+  met, but entering bounced straight back. Neither region could be reclaimed,
+  so the Final Trial could never open. This was in the game since v2.1.11. The
+  testing harness didn't catch it because its region trials start with
+  `hasWon: true`. The v2.2.3 town hub copied the same gate.
+- Regions now open on their own unlock requirement, as their Territories
+  tiles already said:
+  - **Temple:** 100 Darkness Removed through tithes.
+  - **Arena:** 6 veterans trained to mastery.
+
+  New `regionStatus()` / `regionOpen()` helpers are used by the router, both
+  region pages and the town hub. A locked region now sends you to Reclaimed
+  Territories rather than Company Hall.
+- The Temple and Arena embark functions now check the unlock themselves
+  (before, the pages were their only gate).
+- The Arena's Exhibition Match had been unreachable for the same reason
+  before the Final Trial. It is available again once the Arena unlocks, as
+  designed in v2.1.3.
+
+### Changed
+- Town hub plates for the Temple and Arena show where each stands: *lost*,
+  *step N of 4*, *final battle* or *reclaimed*.
+
+### Verified
+- Reproduced on v2.2.4: with both requirements met, both tiles show Enter →
+  and entering either region lands on Company Hall.
+- End to end in the browser, on the exact upload set:
+  - a real tithe payment takes Darkness Removed from 98 to 112 and unlocks
+    the Temple;
+  - its tile and the town building both open it, and Temple step 1 is
+    fought and advances the chain;
+  - the Arena unlocks at 6 veterans and Arena step 1 is fought and advances;
+  - the Endless Rite and the Endless Bout are fought and won, reclaiming
+    both regions;
+  - the Final Trial card then offers "Face The Undying General". Zero
+    console errors.
+- 20 AI-played Arena step-1 fights all ended (19 won, 1 lost) in about 35–55
+  turns.
+- Seeded determinism check: 480 harness trials byte-identical to v2.2.4.
+- Title, town hub, all camp screens and four AI-played battles: no errors.
+
+### Known Issues
+- In one test run, an AI-played Arena step-1 fight was still going after 900
+  unit turns. It didn't happen again in 20 more fights, so it's likely the
+  test AI, but it's worth watching for in playtests.
+- The Arena's unlock (6 veterans) is still twice the Final Trial's own
+  veteran requirement (3). That ratio was set when the Arena came *after* the
+  Final Trial; now that it comes before, it may want revisiting.
+
+---
+
+## [v2.2.4] — Art Wiring Phase 5: Title and Polish (Significant)
+
+Last of five art-wiring phases (plan: "Last Light — Art Wiring Proposal",
+https://claude.ai/artifact/UxEYKh1EDNtbxffPxdsEE3). With this build the game is
+ready to package with Capacitor.
+
+### Changed — render, platform and packaging code only
+- No combat, mission, economy or enemy logic changed.
+
+### Added
+- **Scene A title screen** (direction chosen 2026-10-21, Landing Screens canvas):
+  the beacon mark, "Last Light" in IM Fell English SC, the beacon scene, the
+  quote, **Light the Beacon** (to the primer) and **How to Play**, and a footer
+  with the engine version. The page header is hidden on the title.
+  - Phones show the 336×432 scene, shrinking on short screens so the title
+    fits without scrolling (checked at 393×852 and 375×667). Wide, tall screens
+    (1120×900 and up) show the 1080×504 desktop scene and the large title.
+  - Without `sprites.js` the same layout shows a ✦ mark and no scene.
+  - The two lore paragraphs from the old landing card now open the primer.
+- **Bundled fonts** in `last-light/fonts/` (SIL Open Font License, licences
+  included): IM Fell English SC, IM Fell English italic, Alegreya Sans and
+  Alegreya Sans SC. The packaged app needs no connection for them. Alegreya
+  Sans is used on the title screen only, as in the approved mock; the body font
+  for the rest of the game is still open, so it stays Courier New.
+- **Audio unlock:** `unlockAudio()` in `platform.js`. The first tap, click or
+  key unlocks sound on phones (iOS included) and it resumes after the app comes
+  back from the background. The game has no sounds yet; when it does, they play
+  through `LL_AUDIO()`.
+- **App icons on the web:** favicon, Apple touch icon and a web-app manifest
+  (`manifest.webmanifest`, for Add to Home Screen) made from the B2 app icon.
+  The root landing page gets the favicon too.
+- **One-file build:** `last-light/tools/make_single.py` inlines every script,
+  image and font into `last-light-single.html` (about 1.1 MB). It runs from
+  disk; the game logic stays the first inline script, so the harness can test
+  the single file directly.
+
+### Touch pass
+- Double-tap can no longer zoom the page anywhere.
+- Buttons are at least 44 px tall on phones (Apple's tap-size guideline). The
+  header's Help, New Campaign and grid-size buttons stay compact.
+- Battle action popup: 44×44 icon buttons on phones, with `aria-label`s, and
+  it opens below the unit for the top four rows (was two) so the taller popup
+  isn't cut off. The unit panel still labels every action in words.
+- The last hover-only tooltips are now visible text: the Retire / Keep as
+  Trainer outcomes under those buttons, and what Wait a Day does.
+
+### Verified
+- Seeded determinism check: 480 harness trials byte-identical to v2.2.3
+  (hash c53f858e…, 235). The harness extracts the identical game logic from
+  the single file.
+- Browser, the exact upload set and the single file opened from disk: title at
+  393×852, 375×667, 1280×960 and 1366×768, and with `sprites.js` blocked;
+  fonts loaded; audio context running after the first tap; primer; every camp
+  page; town hub and back gesture; four full AI-played battles; the action
+  popup at 44×44; dagger throws. Zero console errors.
+
+### Known Issues
+- **Body font** is still open (Alegreya Sans on the title only).
+- `tools/build_art.py` rebuilds `art/` from `last_light_art.zip`; the thrown
+  dagger PNGs are not in that zip, so re-add them after a rebuild (the page
+  icons are now regenerated by the script).
+- On wide but short screens (for example a 1366×768 laptop) the title uses the
+  phone scene, since the desktop scene doesn't fit the height.
+
+---
+
+## [v2.2.3] — Art Wiring Phase 4: The Camp Hub as Home (Significant)
+
+Fourth of five art-wiring phases (plan: "Last Light — Art Wiring Proposal",
+https://claude.ai/artifact/UxEYKh1EDNtbxffPxdsEE3). Decisions taken 2026-10-23.
+
+### Changed — render and navigation code only
+- No combat, mission, economy or enemy logic changed. Without `sprites.js`
+  the Town page is a plain list of the same places, so the harness and an
+  art-less page still work.
+
+### Added
+- **The hilltop town is the camp's home screen.** New campaigns open on it,
+  and missions (and a cancelled deployment) return to it (Randall,
+  2026-10-23; replaces the v2.0.4 return to Company Hall). Training choices
+  are still made on the result screen first.
+  - Buildings are tap areas with name plates: Company Hall (roster count),
+    Recruitment (recruits for hire), Expedition Board (missions), The Beacon
+    (tithe due), Beyond the Wall (Reclaimed Territories), The Temple and The
+    Arena (lost or reclaimed; their pages once the Final Trial is won,
+    otherwise Reclaimed Territories).
+  - The town darkens in four stages with the Darkness meter (0–8, 9–16,
+    17–24, 25–33), ported from `hub_darkness.py`: dithered dark line,
+    the sky, distant spire, tower top and flame never darken, and eyes
+    appear in the dark. A reclaimed Temple or Arena stays lit.
+  - The Beacon flame flickers.
+  - Sized to fit the screen height so the lost territories show without
+    scrolling (whole-pixel scale at 2× and above).
+- **Tapping the Beacon** opens the tithe details, with Pay Tithe Early.
+- **Bottom bar** on every camp page: Town, Company Hall, Recruitment,
+  Expedition Board, Territories. The current page is lit; region pages light
+  Territories. Respects the phone's safe area.
+- **Compact camp header:** Day, Gold, Tithe and Darkness, each still tappable
+  for its explanation. Patron, upkeep, roster count, the full tithe line and
+  Darkness Removed moved to a **ledger card** at the top of Company Hall.
+- **Back gesture:** `goBack()` in `platform.js`. The browser back gesture and
+  (once packaged) the Android back button close an open panel or action popup
+  first, then step back: a camp page → the town, a region page → Reclaimed
+  Territories, Help / Hall of Fame → where you were. In a battle or deploy
+  the gesture is ignored, so it can't leave the page and lose the campaign.
+- **Thrown dagger:** Dagger-wielding and Rogue units throw a dagger at
+  targets more than one tile away (straight throw; iron and steel variants).
+
+### Verified
+- Seeded determinism check: 480 harness trials byte-identical to v2.2.2
+  (hash c53f858e…, 235).
+- Browser, the exact upload set: town at Darkness 0/12/21/30 and with the
+  Temple reclaimed; Company Hall with the ledger; Beacon tithe panel; Temple
+  page; back gesture from each; every camp page, deploy, battle and victory
+  screens; at 393×852, 375×667 and 1280×900, and with `sprites.js` blocked;
+  four full AI-played battles; iron and steel dagger throws. Zero console
+  errors.
+
+### Known Issues
+- The town art is 192×416, so on most phones the hub is scaled to fit the
+  height with dark margins at the sides. A shorter redraw (about 192×336)
+  would fill more of the screen; open for later.
+
+---
+
+## [v2.2.2] — Art Wiring Phase 3: Icons and Portraits (Minor)
+
+Third of five art-wiring phases (plan: "Last Light — Art Wiring Proposal",
+https://claude.ai/artifact/UxEYKh1EDNtbxffPxdsEE3).
+
+### Changed — render code only
+- New `ic(key, fallback, size)` and `tic(kind, fallback)` helpers, and
+  `portraitBox()` now asks for art. All three return exactly the old
+  emoji, text or letter unless `sprites.js` supplies art, so the harness and a
+  page without `sprites.js` render as before. No game logic changed.
+
+### Added
+- **Pixel icons replace emoji** (12/24/48 px, whole multiples of the 12 px
+  art):
+  - Action popup and unit-panel buttons: Move, Attack, Heal, Cast Bolt,
+    Ability, Skill, End Turn (24 px); ⚔ Begin Battle.
+  - Header chips: Patron, Day, Gold, Upkeep, Tithe, Darkness, Darkness
+    Removed, Roster (24 px).
+  - Tags (12 px): Healer, Caster, Boss, hand and head items, Injured, Bond,
+    Trainer, Barracks.
+  - Pages: Hall of Fame, Exhibition, Temple, Arena (headings 24 px, territory
+    cards 48 px), Wait a Day, Final Trial hint, Battle Key toggle.
+- **Capstone emblems** on the Final Trial card (24 px) and the victory screen
+  (48 px), keyed by patron.
+- **Portraits:** enemy portraits from sprite frame 0, including the capstone
+  boss (red border on bosses). The patron slot shows the patron's capstone
+  emblem until patron portraits are drawn.
+- **Battle Key** shows the current battlefield's real tiles: difficult ground,
+  each obstacle type, high ground, the objective, and lit / dim / fog samples.
+- **Compact battle/deploy header** shows Day, Gold and Darkness (option b,
+  chosen 2026-10-23).
+
+### Fixed
+- The compact battle/deploy header (v2.0.34) never actually hid the patron
+  portrait and name: the group's inline `display:flex` overrode the CSS rule.
+  Now hidden, with Day/Gold/Darkness in its place.
+
+### Verified
+- Seeded determinism check: 480 harness trials byte-identical to v2.2.1
+  (and v2.2.0), including round counts.
+- Browser, the exact upload set: landing, Company Hall (with gear, injury,
+  bond, trainer, healer and caster), Recruitment Office, Expedition Board,
+  Reclaimed Territories, Temple, Arena, Hall of Fame, deploy, battle (popup
+  and Battle Key open) and the victory screen at 393×852; desktop at
+  1280×960; the same screens with `sprites.js` blocked (emoji fallback); four
+  full AI-played battles. Zero console errors.
+
+### Known Issues
+- The tile-info line under the grid still starts with ▓ (it doesn't know which
+  obstacle was tapped).
+- Header chips that open an explanation show the icon inside their dotted
+  tag border, so those chips look slightly different from the plain ones.
+- Equipment icons, patron portraits and card art are still deferred, as
+  planned; their slots keep today's text.
+
+---
+
+## [v2.2.1] — Art Wiring Phase 2: Battle in Motion (Minor)
+
+Second of five art-wiring phases (plan: "Last Light — Art Wiring Proposal",
+https://claude.ai/artifact/UxEYKh1EDNtbxffPxdsEE3). Shipped as one batch with
+the grid-size default change, per Randall's "no new version until a significant
+update" rule.
+
+### Changed — game logic (the only logic changes)
+- New no-op `fx(type, data)`, called where an attack (`attackUnit`), Cast
+  Bolt (`castBolt`), Heal (`healUnit`), Lv3 skill (`useSpecializationSkill`)
+  or enemy ability (`useEnemyAbility`) resolves. `sprites.js` installs the
+  real handler in the browser; the harness never loads it, so `fx()` stays a
+  no-op there.
+- **Enemy attack pause** (approved 2026-10-23): new `enemyAttackPause()` holds
+  `ENEMY_ANIM_DELAY_MS * 3` (about 450 ms) after each enemy attack, Two-headed
+  second attack and enemy ability, so the attack strip can be seen. It returns
+  at once when the delay is 0 (the harness).
+
+### Changed
+- **Grid size switch opens on B** (fill the width), Randall's choice after
+  playing v2.2.0 on his phone (2026-10-22). A and C stay one tap away; a phone
+  that already saved a choice keeps it.
+
+### Added — renderer (`sprites.js`)
+- Idle loops for every unit (enemy timings from `enemy_anim_manifest.json`,
+  1.6 s A/B bob for the squad), each offset so the squad doesn't bob in unison.
+- Attack strips, turned toward the target, with a 2-pixel nudge during the
+  strike; the duplicate label hides while a unit attacks.
+- Guardian line: Heal 2–4, strike 5–7. Arcanist line: Cast Bolt 2–5, strike
+  6–7 with frame 7 held an extra beat (both set by Randall 2026-10-23).
+  Specializations follow their class. Lv2 abilities and Lv3 skills use the
+  strike. Recruits who heal or cast use their weapon strike plus the effect.
+- Broodmother's Brood Swarm frame (held 500 ms); the summoned Crawler fades in
+  on its beat. Other new arrivals (waves, Parasitic, Splitting) fade in.
+- Effects: arrows in flight for bow users at range, the violet Cast Bolt in
+  flight, white hit flash + shake + ember spark (violet for Cast Bolt), heal
+  motes, ember glow on the Guardian's Heal flare.
+- Death fade-and-drop at the unit's last tile, after the blow lands. Damage
+  from sources without an `fx()` call (spores, splash, thorns, corrosive
+  blood) still flashes, found by comparing HP between frames.
+- Elite and mutation effects from each sprite's own silhouette: pulsing violet
+  rim + haze on elites and mutated enemies; wider, slower haze on Elders and
+  capstones; Bloated swollen rim; Two-headed after-image (jumps and brightens
+  on the second attack); Frog-Legged idle hop; Splitting crack (widens below
+  55% HP); Endless Bout phase 2 (red tint cut by a third, ember cracks, red
+  rim); capstone Awakening (ember rim and glow). At most two special
+  overlays per enemy. Boss aura under every boss.
+- Objective sigil pulses (4 frames, 180 ms).
+- Healer/caster badge on recruits below Lv1 (recruits only, decided
+  2026-10-23).
+- Reduced motion: idle loops, rim pulses and the objective hold still;
+  attacks, hits and deaths still play.
+- Phone grid-size switch opens on **B** (chosen 2026-10-22). A phone that
+  already saved a choice keeps it.
+
+### Verified
+- **Seeded determinism check:** with `Math.random` seeded identically, 480
+  harness trials (core grid ×25 per cell, every Temple/Arena step and boss ×8)
+  produce byte-identical results, including round counts, on v2.2.0 and
+  v2.2.1.
+- `assertHarnessIntegrity()`: clean. `runSweep(100)` (v2.2.0 → v2.2.1, T1–T4):
+  Explore 89/81/22/0 → 86/70/25/1; Defense 78/73/13/0 → 86/73/14/0; Boss Hunt
+  86/82/8/8 → 92/81/3/7; Purge 90/57/28/0 → 90/48/23/0. `testRegionStep`
+  N=30: Temple 93/73/73/57, Rite 33 → 83/63/73/50, Rite 37; Arena
+  87/63/60/67, Bout 37 → 83/70/63/53, Bout 50. Sampling noise only, as the
+  seeded run proves.
+- Browser: staged frame-by-frame captures of arrow, bolt, heal, kill, enemy
+  bite and Brood Swarm; four full AI-played battles (Boss Hunt, Explore,
+  Purge, Defense) with the renderer live; the exact upload set served as on
+  GitHub Pages. Zero console errors, no missing images.
+
+### Known Issues
+- The cell layer shows a new enemy's HP border a moment before its sprite
+  fades in.
+- Units still step between tiles without sliding (movement tweening isn't in
+  the plan).
+- Battle Key legend and tile-info line still use text symbols (Phase 3).
+
+---
+
+## [v2.2.0] — Art Wiring Phase 1: Battle Grid Drawn with the Official Art (Significant)
+
+First of five art-wiring phases (plan: "Last Light — Art Wiring Proposal",
+https://claude.ai/artifact/UxEYKh1EDNtbxffPxdsEE3). Phase 1 is the battle and
+deploy grid, still images only. Built from `last_light_art.zip` (2026-10-22).
+
+### Changed — Structural
+- **The game is now a folder**, `last-light/`: `index.html` (the game),
+  `sprites.js` (renderer), `platform.js` (packaging hooks), `art/` (the
+  official PNGs plus a generated `manifest.js`). The game logic is still the
+  first inline `<script>` in `index.html` and is **byte-identical to
+  v2.1.16**; the harness extracts it exactly as before and never loads the
+  two new scripts. `index.html` (site root) now links to `last-light/`.
+
+### Added
+- **Canvas under the existing cells** draws, per tile: floor (the spec's
+  (x,y) hash picks variant a/b/c), terrain (per-battlefield high ground and
+  difficult ground, the three ruins-wall variants, obstacle `spriteKey`s), the
+  objective, units at frame 0 (5 weapon recruits, 7 classes, 14
+  specializations, 9 enemies, 6 capstone bosses keyed by patron), an
+  ember/violet foot glow for allies/enemies, light and fog (100% / 68% / 35%
+  with the approved gold and amber tints), and the duplicate-number label
+  (shown only when two visible units on a side share a glyph). Deploy uses
+  the same renderer.
+- The cells go see-through and keep taps, move/attack/heal/cast washes (now a
+  translucent wash plus the outline), HP borders, the active outline, the
+  boss outline, the ranged-attack pulse and the action popup.
+- **Grid size on phones:** option A (whole device pixels), B (fill the width,
+  nearest-neighbour) or C (fill the width, sharp-scaled; the default), picked
+  with a small "Grid size A/B/C" switch in the battle/deploy header at phone
+  widths and remembered on the device. Desktop keeps the 48/72px cells.
+- **Packaging hooks 1 and 3:** safe areas (`viewport-fit=cover` plus
+  `env(safe-area-inset-*)` body padding) and `store.get/set`, the single
+  storage access point (localStorage today, Capacitor Preferences later).
+- Units face their nearest visible opponent (the art faces left and is
+  mirrored when the foe is to the right); front-facing enemies never flip.
+- `touch-action: manipulation` on the grid, so a quick double tap can't zoom.
+
+### Fallbacks
+- A missing image draws that tile's old glyph on the canvas instead. If the
+  renderer throws five times in a row it turns art mode off and the v2.1.16
+  glyph grid returns. Without `sprites.js` the page renders exactly as
+  v2.1.16.
+
+### Verified
+- Game script extracted from the new `index.html` is byte-identical to
+  v2.1.16 (`cmp`).
+- `assertHarnessIntegrity()`: clean, before and after.
+- `runSweep(100)` core grid before → after (T1/T2/T3/T4): Explore
+  90/77/22/0 → 89/81/22/0; Defense 83/66/15/0 → 78/73/13/0; Boss Hunt
+  92/84/2/8 → 86/82/8/8; Purge 75/64/25/0 → 90/57/28/0. `testRegionStep`
+  N=30, Lv3 squads: Temple 70/87/83/43, Rite 37 → 93/73/73/57, Rite 33;
+  Arena 63/60/63/50, Bout 47 → 87/63/60/67, Bout 37. Identical code on both
+  sides, so every gap is sampling noise (N=30 is well above the ±5–8 point
+  floor measured at N=150).
+- Screenshots in Chromium at 393×852 (3×), 412×915 (2.625×), 852×393
+  landscape and 1280×960, all five battlefields, deploy and battle; capstone
+  boss and specialization sprites; glyph fallback with two images blocked;
+  zero console errors.
+
+### Known Issues
+- Battle Key legend and the tile-info line still use text symbols (Phase 3).
+- The deploy hint still says "Map glyph shows each recruit's weapon".
+- Watch items from the art review still open: floors read alike at 1×; boss
+  presence waits on the Phase 2 aura.
+- `sprite-art-spec.md`'s one-line JS floor hash is missing a final `>>> 0`
+  (without it, a third of tiles get a negative index); the renderer uses the
+  corrected form, which matches `floors_all.py`.
+
+---
+
+## [v2.1.16] — New-Player Onboarding: Primer Screen + Plain-Language Patron Cards
+
+Addresses the new-player review: archetype/patron selection was a high-stakes
+decision made with zero prior context, presented as dense modifier jargon.
+Mocked up and confirmed with the user before implementation (per project
+convention for UI changes with real design ambiguity) at
+https://claude.ai/artifact/4AxzkPWxEEY1we1q2q2qKa. Pure UI/copy change — no
+mission, combat, or squad-stat logic touched, so no testing-harness sweep
+required; syntax-checked (`node -c`) and spot-verified instead.
+
+### Added
+- New optional, skippable **Primer screen** (`G.screen==='primer'`), offered
+  between Landing and Patron selection. Five short beats covering the core
+  loop (company/squad, gold & upkeep/tithe/Darkness, mission stakes and
+  Injured, recruit growth, and what choosing a Patron actually sets), ending
+  on "Begin →" and "Skip — I know what I'm doing" — both land on the
+  unchanged `beginArchetypeSelection()`, since the primer never touches `G`
+  state and is safe to skip entirely.
+- New `beginPrimer()` function; Landing's "Choose Your Company" button now
+  calls it instead of `beginArchetypeSelection()` directly.
+- New `renderPrimer()` function and `<div id="screenPrimer">` in the HTML
+  wrapper, plus a `render()` dispatch block and display-toggle line.
+- `summary` (one plain-language sentence) and `badges` (short mechanical
+  tags, e.g. `"175g Start"`, `"-35% Upkeep"`) fields added to all 6
+  `PATRON_ARCHETYPES` entries.
+- `.badge` and `.primerstep` CSS classes added to the HTML wrapper, reusing
+  existing `--ember`/`--ember-dim`/`--panel2`/`--line` variables.
+
+### Changed
+- `renderArchetype()`'s patron cards now show `a.summary` plus a row of
+  `a.badges` instead of the old single run-on sentence built from a long
+  ternary chain over the raw modifier fields (`upkeepMult`, `poolBonus`,
+  `darknessMult`, `restHealPct`, `titheDiscount`, `stipendPerTier`, etc.) —
+  the underlying modifier values and mechanics are unchanged, only how
+  they're surfaced to the player.
+
+### Verified
+- `node -c` syntax check on `game_core_v56.js` and on the rebuilt wrapper's
+  extracted `<script>` contents — both clean.
+- All 6 `PATRON_ARCHETYPES` entries confirmed to carry matching
+  `summary`/`badges` copy from the approved mockup; no modifier values
+  changed.
+
+---
+
+## Last Light Lean v1 — Named Milestone Build
+
+Named milestone marking the end of the 6-stage scope-reduction pass. Ships
+as `last-light-lean-v1.html` — originally byte-for-byte identical game logic
+to engine v2.1.15 (only the `<title>`, header comment, and in-game `<h1>`
+carried the "Lean v1" name), now carrying forward engine v2.1.16 (the
+new-player onboarding addition above) as the underlying engine version
+continues to update for ongoing dev tracking. `index.html`'s Play Now link
+points here.
+
+"Lean" names what the pass delivered: 7 base classes with no reclass paths,
+2 reclaim regions (Temple/Arena), 4 mission types (Explore/Defense/Boss
+Hunt/Purge), a Gold+Darkness-only economy (no Reputation), and a single
+merged Injured stakes tier (flat 25% permadeath, no Wounds/Injuries split).
+
+---
+
+## Scope Reduction Stage 6 — Full End-to-End Verification Sweep (no game_core version bump)
+
+Sixth and final stage of the locked scope-reduction plan (Stage 1 removed
+Reputation; Stage 2 removed Relic/Stalk; Stage 3 removed Agora/Elysium;
+Stage 4 removed all 4 reclass paths; Stage 5 merged Wounds+Injuries). This
+stage is a pure audit/verification pass across everything Stages 1–5
+touched — no game-balance or feature changes to `game_core_v56.js`, so no
+version bump in the 3 usual locations (nothing to bump).
+
+### Audited
+- Full symbol sweep of `game_core_v56.js` for any live-code reference to
+  Reputation, Relic/Stalk, Agora/Elysium, the 4 reclass paths, or the old
+  separate Wounds/Injuries model — none found; every remaining hit is an
+  inert historical comment or unrelated flavor text ("no reputation on the
+  line" in Exhibition Match's description).
+- Same sweep of `last-light-testing-harness-v2.js` — clean, except one
+  harmless-but-stale finding (below).
+- Confirmed exactly 4 mission types (`MISSION_TYPES`), 7 base classes
+  (`getClassName()`), and 2 reclaim regions (`RECLAIM_REGIONS`) remain live,
+  with the capstone gate correctly wired to `templeReclaimed && arenaReclaimed`.
+
+### Fixed
+- `last-light-testing-harness-v2.js`'s `runReclaimTrial()` was still
+  initializing dead `agoraReclaimed`/`elysiumReclaimed` fields on its test
+  `G` object — both regions were removed in Stage 3, and their only readers
+  (`duskhunterEligible()`/`shadesingerEligible()`) were removed in Stage 4,
+  so these fields have had zero readers anywhere in `game_core_v56.js` since
+  v2.1.14. Harmless as dead state (never read, so never affected a test
+  result), but cleared out as exactly the kind of stale-duplicate risk this
+  stage exists to catch (see `testing-and-balance` project notes on
+  `buildMission()`'s standalone-duplicate risk).
+
+### Verified
+- `assertHarnessIntegrity()`: clean.
+- N=100 core-type sweep (all 4 mission types × T1–T4): no crashes, results
+  consistent with the established T1/T2-strong, T3/T4-weak pattern already
+  flagged as a carried-forward open item in the design-decision addenda —
+  not introduced by scope reduction, not touched by this stage.
+- Full region-chain sweep — all 4 Temple steps, all 4 Arena steps, and both
+  Endless-X bosses (N=30 each) — run side-by-side against the true
+  pre-Stage-5 (v2.1.14) `game_core_v56.js`, extracted directly from the
+  shipped `last-light-poc-v2_1_14.html` wrapper rather than trusted from
+  memory. Two cells showed an eye-catching gap at N=30 (The Endless Rite:
+  46.7% vs 26.7%; Arena step 4's `avgRounds`: 246 vs 23) — both re-run at
+  higher N (60 for the Rite, a repeat N=30 for Arena step 4) and resolved
+  to an exact 45%/45% match and a normal ~21-round average respectively,
+  confirming both were sampling noise / a single-trial stall outlier (the
+  latter matching the already-documented, still-unresolved AI-stall open
+  item), not a regression from Stage 5's changes. Every other cell matched
+  within the established noise floor on the first pass.
+
+---
+
+## [v2.1.15] — Scope Reduction Stage 5: Wounds+Injuries Merged, Permadeath Reworked (Significant)
+
+Fifth stage of the locked scope-reduction plan (Stage 1 removed Reputation;
+Stage 2 removed Relic/Stalk; Stage 3 removed Agora/Elysium; Stage 4 removed
+all 4 reclass paths). Next and last: the final end-to-end verification sweep
+(Stage 6).
+
+Design confirmed with the user before implementation (per project convention
+for changes with real ambiguity): a severity-scaled permadeath formula (keyed
+off squad casualty %) was drafted and explicitly rejected in favor of one
+flat, simple probability; bench length is a flat random range, not
+severity-scaled either; and the merged tier carries no stat penalty at all,
+just the bench.
+
+### Removed
+- **The Wounds system**: `WOUND_HP_THRESHOLD`'s low-HP trigger, `applyWound()`'s
+  -1/-1-to-two-random-stats penalty, the `r.wounds` array, the Temple's
+  one-at-a-time wound-mending-by-sitting-out logic, and
+  `templeHealWound()`/`TEMPLE_WOUND_COST`.
+- **The Injuries system**: `INJURY_TYPES`' 8 named permanent -2 injuries,
+  `rollInjury()`, the flat 30%-survival `INJURY_CHANCE` roll, the `r.injuries`
+  array, and `templeRemoveInjury()`/`templeRemoveInjuryCost()`/
+  `TEMPLE_INJURY_BASE_COST`.
+- The `foughtWounded` nickname category (`foughtWhileWoundedCount`) — the
+  thing it tracked, fighting while still carrying an unhealed wound, can no
+  longer happen once being hurt benches a recruit outright.
+
+### Added
+- **A single Injured tier**: `r.injuryBenchRemaining`, `applyInjury()`,
+  `rollInjuryBenchLength()`. A recruit becomes Injured either by ending a
+  mission at or below `INJURED_HP_THRESHOLD` (renamed from
+  `WOUND_HP_THRESHOLD`, same 25% value), or by rolling survival on a
+  would-otherwise-be-fatal blow — now a flat 75% chance
+  (`PERMADEATH_CHANCE=0.25`, replacing the old 30%/70% split) rather than the
+  drafted-and-rejected severity-scaled formula. Either path benches the
+  recruit (undeployable, including Exhibition Matches) for a random
+  `INJURY_BENCH_MIN`–`INJURY_BENCH_MAX` (2–4) expeditions with zero stat
+  penalty, ticking down by 1 each expedition they sit out — purely a rest
+  cost, no gold or purchase involved.
+- Renamed `timesWounded` → `timesInjured` (still used by the `wounded`
+  nickname category and its Hall of Fame entry, now "Most Times Injured").
+
+### Changed
+- Company Hall's roster tag collapses the old separate Wounded/Injury tags
+  into one "Injured (N left)" tag; its squad-select checkbox is now disabled
+  for a benched recruit, and `toggleSquad()` also refuses one server-side as
+  a safety net.
+- Exhibition Match's eligible-recruit picker and `embarkExhibition()` both
+  now exclude benched recruits too.
+- The Temple Infirmary keeps its HP-healing-for-gold offer unchanged but no
+  longer has anything to sell for Wounds/Injuries, since there's no longer a
+  stat penalty to pay off — recovery is rest-only by design.
+- Updated the in-game help text (one merged "Injured" paragraph replacing the
+  old separate Wounds/Injuries paragraphs) and the battle-grid HP-tier color
+  threshold reference (`WOUND_HP_THRESHOLD` → `INJURED_HP_THRESHOLD`, same
+  0.25 cutoff).
+
+### Verified
+- Full syntax check on `game_core_v56.js` and the rebuilt HTML wrapper.
+- `assertHarnessIntegrity()`: clean.
+- N=60 core-type sweep and N=30 `testRegionStep()` sweeps (Temple/Arena step
+  2) all matched the v2.1.14 baseline within noise, confirming this change —
+  purely post-battle roster bookkeeping — left combat itself completely
+  unaffected.
+
+---
+
+## [v2.1.14] — Scope Reduction Stage 4: All 4 Reclass Paths Removed (Significant)
+
+Fourth stage of the locked scope-reduction plan (Stage 1 removed Reputation;
+Stage 2 removed Relic/Stalk; Stage 3 removed Agora/Elysium). Next: the
+Wounds+Injuries stakes rework, then the final end-to-end verification sweep.
+
+### Removed
+- **All 4 reclass paths, entirely**: Darkwarden, Duskhunter, Shadesinger,
+  Nightsworn. Deleted all 4 ordination eligibility/action function pairs
+  (`darkwardenEligible()`/`ordainDarkwarden()`, `duskhunterEligible()`/
+  `ordainDuskhunter()`, `shadesingerEligible()`/`ordainShadesinger()`,
+  `nightswornEligible()`/`ordainNightsworn()`) and their Territories-page UI
+  (the eligible-recruit lists and Ordain/Swear buttons on the Temple and
+  Arena pages).
+- The `isDarkwarden`/`isDuskhunter`/`isShadesinger`/`isNightsworn` recruit
+  flags, the `confirmOrdainKey` shared confirm-click state, and
+  `getClassName()`'s 4 reclass branches — `getClassName()` and
+  `CLASS_SPRITE_KEYS` now only cover the 7 base classes.
+- All 12 reclass-only abilities from `BUFF_ABILITIES`/`SPECIALIZATION_SKILLS`:
+  Banish, Mark Quarry, Riposte Mark, Cutting Verse (Lv2); Beacon Ward, Last
+  Ward, Alpha's Bane, Trophy-Taker, Rousing Chorus, Silver Tongue, Twinstrike
+  Fury, Second Wind (Lv3) — along with their mission-end payout hooks
+  (Darkwarden's darkness reduction, Shadesinger's bonus gold, Nightsworn's
+  bonus HP, Duskhunter's guaranteed item drop) and
+  `DARKWARDEN_WIN_DARKNESS_REDUCTION`.
+- Duskhunter's dim-light ranged-targeting exception from
+  `validAttackTargets()`/`validCastTargets()`/`validSkillTargets()` — ranged
+  attacks now uniformly require full light for every class.
+- Now-fully-dead `elysiumReclaimed`/`agoraReclaimed` state (their only
+  readers, `duskhunterEligible()`/`shadesingerEligible()`, are gone) and
+  `gotEliteKillThisBattle` (only reader was Trophy-Taker's guaranteed-drop
+  check).
+
+### Changed
+- Updated the two help-screen mentions of Duskhunters' dim-light targeting
+  to match — ranged attacks into dim light are no longer possible for
+  anyone.
+- **Kept**: Arena's Retraining feature (`retrainEligible()`/`retrainCost()`/
+  `retrainWeapon()`) is a separate, non-reclass mechanic and stays untouched
+  apart from dropping its own dead `isDarkwarden`/etc. guard clause.
+
+### Verified
+- Full syntax check on `game_core_v56.js`, the rebuilt HTML wrapper, and the
+  test harness (no reclass references existed there to update).
+- `assertHarnessIntegrity()`: 5/5 clean.
+- N=100 core-type sweep and N=40 `testRegionStep()` sweeps of every
+  Temple/Arena chain step and both Endless-X bosses all matched the v2.1.13
+  baseline within noise, confirming the shared-code changes
+  (`getClassName()`, the three `validXTargets()` functions, and the
+  mission-end payout block) left ordinary combat and region-chain behavior
+  completely unaffected.
+
+---
+
+## [v2.1.13] — Scope Reduction Stage 3: Agora and Elysium Removed (Significant)
+
+Third stage of the locked scope-reduction plan (Stage 1 removed Reputation;
+Stage 2 removed Relic/Stalk). Next: the four reclass paths, then the
+Wounds+Injuries stakes rework.
+
+### Removed
+- **Agora and Elysium regions**, entirely: both regions' unlock-gate functions
+  (`agoraUnlockReady()`/`elysiumUnlockReady()`), their 4-step mission chains
+  and Endless-X boss generators (`AGORA_CHAIN`/`genAgoraMission()`/
+  `genAgoraTollMission()`, `ELYSIUM_CHAIN`/`genElysiumMission()`/
+  `genElysiumHuntMission()`), their wave-size/cap constants
+  (`PACKHUNT_WAVE_SIZE`/`CAP`, `ELYSIUMHUNT_WAVE_SIZE`/`CAP`,
+  `AGORATOLL_WAVE_SIZE`/`CAP`), their `TYPE_LABELS`/`MISSION_OBJECTIVE_TEXT`
+  entries, their mission-end handlers (`isElysiumChain`/`isElysiumHunt`/
+  `isAgoraChain`/`isAgoraToll`) and embark functions
+  (`embarkAgoraMission()`/`embarkAgoraToll()`/`embarkElysiumMission()`/
+  `embarkElysiumHunt()`), and their Territories-page tiles, builders, and UI
+  sections (`buildAgoraHtml()`/`buildElysiumHtml()`).
+- **Both regions' economic features**: Agora's `agoraItemCost()`/
+  `agoraBuyItem()` (equipment purchase) and Elysium's `ELYSIUM_CRAFT_COST`/
+  `elysiumCraftItem()` (trophy crafting).
+- Dead trophy/kill-tracking state (`elysiumUnlockKills`, `elysiumTrophies`,
+  `elysiumChainStep`, `agoraChainStep`) once nothing read or wrote them
+  anymore.
+- `placeRouteNodes()`, Agora traderoute's dedicated objective-placement
+  function, once traderoute itself was gone.
+
+### Fixed
+- The post-capstone victory screen text still named all 4 regions as "still
+  lost to the Darkness," despite Temple and Arena already being guaranteed
+  reclaimed by the v2.1.11 capstone gate — a pre-existing bug surfaced during
+  this stage's audit, now corrected to reflect that gate.
+
+### Deliberately not removed yet
+- `duskhunterEligible()`/`ordainDuskhunter()`/`shadesingerEligible()`/
+  `ordainShadesinger()` (the Duskhunter/Shadesinger reclass functions) are left
+  in place, now permanently unreachable since `G.elysiumReclaimed`/
+  `G.agoraReclaimed` can never become true again. Removing reclass paths is
+  Stage 4's job, per the locked stage order (regions before reclasses).
+
+### Changed
+- **Surgical removal from shared code**: Agora's `traderoute` mission type
+  reused Temple's `isCleanseType`/`CLEANSE_WAVE_SIZE`/`CLEANSE_WAVE_CAP`
+  infrastructure, and `packhunt`/`elysiumhunt`/`agoratoll` shared the same
+  wave-gating OR-chains as Temple's `templerite`
+  (`stalkWavesNotStarted`/`stalkWavesStopped`, `isTempleRiteType`,
+  `wavesInType`, and the mission-type dispatch in `spawnWave()`/
+  `checkBattleEnd()`/`battleCellClick()`/`updateDiscovery()`/
+  `startNewRound()`). Every shared condition had only the
+  traderoute/packhunt/elysiumhunt/agoratoll tokens removed — Temple's
+  cleanse/templerite and Arena's trial/arenabout branches are untouched.
+- The test harness's own standalone duplicate AI-turn holder logic
+  (`performAITurn()`'s cleanse/templerite branches, and the `RECLAIM_REGIONS`
+  table) updated to match, so it doesn't reference now-deleted mission types
+  or generator functions.
+
+### Verified
+- Full syntax check on `game_core_v56.js`, the rebuilt HTML wrapper, and the
+  test harness.
+- `assertHarnessIntegrity()`: 5/5 clean.
+- N=30–60 `testRegionStep()` sweeps of every Temple and Arena chain step plus
+  both Endless-X bosses (the mission types sharing the touched wave-gating
+  infrastructure) matched a side-by-side run of the unmodified v2.1.12
+  baseline within noise at every step, confirming the token removal left
+  Temple's and Arena's own gating completely unaffected.
+
+---
+
+## [v2.1.12] — Scope Reduction Stage 2: Relic and Stalk Removed (Significant)
+
+Second stage of the locked scope-reduction plan (Stage 1 removed Reputation).
+Next: Agora/Elysium region removal, then the four reclass paths, then the
+Wounds+Injuries stakes rework.
+
+### Removed
+- **Relic and Stalk mission types**, entirely: `MISSION_TYPES` no longer lists
+  either, so `genMission()` can never generate one again. Deleted their per-tier
+  constants (`RELIC_ENEMY_COUNT_BASE`, `RELIC_WAVE_CADENCE`, `RELIC_WAVE_SIZE`,
+  `STALK_ENEMY_COUNT_BASE`), their entries in `TYPE_LABELS`,
+  `MISSION_OBJECTIVE_TEXT`, `TYPE_NAME_PREFIX`, and `REWARD_MULTIPLIER`, their
+  `genMission()` branches and flavor-text arrays, Relic's entire
+  claim/return-to-entrance mechanic (the `relicAllHome` check in
+  `checkBattleEnd()` and the claim handler in `battleCellClick`), and the
+  now-orphaned `spawnStalkElite()`.
+- Explorer patron's `missionTypeBonus` and the help-screen's Relic/Stalk
+  paragraphs, both updated to match.
+
+### Changed
+- **Surgical removal from shared code**: Stalk shared its "waves wait for the
+  elite to be found" gating and its objective-placement/elite-trigger code with
+  Pack Hunt (Elysium's chain) and every region's Endless-X boss (Temple's
+  Endless Rite, Agora's Endless Toll, Elysium's Endless Hunt). Every shared
+  OR-condition (`wavesInType`, `stalkWavesNotStarted`/`stalkWavesStopped`, the
+  elite-defeated check in `checkBattleEnd()`, the `battleCellClick` trigger
+  block) had only the `'stalk'` token removed — the region-boss branches are
+  untouched.
+- The test harness's own standalone duplicate mission builder
+  (`buildMission()`, plus its two sweep-type arrays) updated to match, so it
+  doesn't reference now-deleted constants.
+
+### Verified
+- Full syntax check on `game_core_v56.js`, the rebuilt HTML wrapper, and the
+  test harness.
+- `assertHarnessIntegrity()`: 5/5 clean.
+- Confirmed `genMission()` produces only the 4 surviving types across 300
+  samples.
+- N=30 sweeps of Temple Step 1, Arena Step 1, and Temple's Endless Rite boss
+  all matched their pre-change baselines within noise (Endless Rite: 50% pre
+  vs. 47% post) — an initial N=10 pass had shown a misleading 70%/10% split,
+  underscoring how noisy this specific encounter reads at low sample sizes.
+
+---
+
+## [v2.1.11] — Scope Reduction Stage 1: Reputation Removed (Significant)
+
+Part of a disciplined scope-reduction pass toward a tighter, production-viable
+vertical slice. Full locked plan: cut Reputation (this release), then Relic/Stalk
+mission types, then Agora/Elysium regions, then the four reclass paths, then rework
+Wounds+Injuries into one stakes tier — NG+ shelved for after the capstone, not cut.
+
+### Removed
+- **The entire Reputation system**: `G.rep`, `repTier()`, `REP_TIER_THRESHOLDS`,
+  `PATRON_REP_TIERS`, `loseReputation()`, `missionFailureRepLoss()`,
+  `titheMissRepLoss()`, the `'reputation'` game-over reason, the `rep` field on
+  every mission/chain/capstone reward object, and `startRep`/`repGainMult`/
+  `failRepLossMult` from the patron archetypes.
+- **The standalone Reputation-collapse fail-state**, with no replacement penalty:
+  mission failure and missed tithes now cost only the existing salvage-rate gold
+  and that cycle's forfeited darkness relief. Darkness-max remains the sole doom
+  clock, independent of standing as it always was.
+- Noble's `repGainMult`/`failRepLossMult` perks, with no substitute added — its
+  darknessTier-based stipend carries the archetype alone for now.
+- The Reputation cost on cancelling a deployed-but-unfought expedition (it was a
+  scouting-deterrent, not a failure penalty) — cancelling is now free. Flagged as
+  a possible follow-up if this gets abused.
+
+### Changed
+- **New `darknessTier()`** takes over Reputation's economy-scaling role (tithe
+  cost, barracks expansion cost, candidate-pool refresh cost and size, Noble's
+  stipend), keyed to the existing `G.templeDarknessReduced` counter (cumulative
+  darkness removed via successful tithe payments — already used to gate Temple's
+  own unlock). New tier thresholds `[0, 56, 112, 182]` are a first-pass estimate
+  scaled to typical cumulative-tithe totals over a full campaign; there's no
+  harness for economy-only pacing, so this is flagged for revision if
+  playtesting shows it's off.
+- **Capstone gate**: `Reputation >= 100` replaced with both reclaimable regions
+  (Temple + Arena) being reclaimed, alongside the existing veteran-count
+  requirement — a stronger, more legible gate now that the reclaim sequence runs
+  before the capstone by design.
+- `PATRON_REP_TIERS` renamed `PATRON_STANDING_TIERS`; `checkRepTierPromotion()`
+  renamed `checkDarknessTierPromotion()`, now called after tithe payments
+  (where `G.templeDarknessReduced` actually changes) instead of after mission
+  wins.
+
+### Verified
+- Full syntax check on the modified `game_core_v56.js` and the rebuilt HTML
+  wrapper's embedded script.
+- `assertHarnessIntegrity()`: 5/5 assertions clean.
+- Side-by-side N=100 Defense-T2 sweep, pre-change file vs. post-change file:
+  67% vs. 68% — within the documented noise floor, confirming zero combat/
+  balance regression. Expected: this stage touched only the economy layer,
+  never mission generation, enemy counts, or combat resolution.
+
+---
+
 ## [v2.1.10] — Harness Integrity Assertions, Real Squad-Cap Gap Fixed, AI-Turn Stall Root-Caused, Relic Touch-Up (Significant)
 
 ### Fixed
