@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="art/appicon/web/favicon_32.png">
 <link rel="apple-touch-icon" href="art/appicon/web/icon_180.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>LAST LIGHT: LEAN v1 (engine v2.2.4)</title>
+<title>LAST LIGHT: LEAN v1 (engine v2.2.6)</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -29,6 +29,34 @@
   v2.1.16 changelog entry, with the full v2.1.15 entry this build carries
   forward verbatim underneath it.
   ===========================================================================
+
+  LAST LIGHT -- v2.2.6
+  Fix: Tier 3 Boss Hunt bosses (Binder, Spitter) were nearly harmless.
+  - BOSSHUNT_TIER_MULT had T3 at 0.10 on HP/ATK/DEF, so the boss averaged
+    ~5 HP / 1 ATK / 1 DEF (a plain Binder is 14/6/4). The 0.10 was tuned in
+    v2.1.5 against the harness, which still spawned 8 T3 minions after the
+    game dropped to 5.
+  - T3 multiplier now 0.60; ATK/DEF never drop below the plain archetype's.
+    Binder boss ~28 HP / 7 ATK / 4 DEF, Spitter boss ~36 / 5 / 2. Harness
+    (Lv2 squads, real 5 minions, N=2x400): T3 ~87%, in line with T1/T2.
+  - BOSSHUNT_ENEMY_COUNT is now a named constant the harness reads.
+
+  LAST LIGHT -- v2.2.5
+  Fix: the Temple and Arena could never be entered.
+  - Since v2.1.11 the Final Trial needs both regions reclaimed first, but
+    the Temple page, the Arena page and the region-page guard in
+    renderPatron() still only opened after the Final Trial was won
+    (G.hasWon). Unlocking a region showed Enter on its Territories tile, and
+    entering bounced to Company Hall -- a deadlock that blocked the rest of
+    the campaign. The v2.2.3 town hub copied the same gate.
+  - Regions now open on their own unlock requirement (Temple: 100 darkness
+    removed via tithes; Arena: 6 veterans trained to mastery), via new
+    regionStatus()/regionOpen(). A locked region page sends you to Reclaimed
+    Territories. The region embark functions now check the unlock too.
+  - Town hub plates show each region's state: lost, step N of 4, final
+    battle, or reclaimed.
+  - Navigation and page gates only; no combat changes. Seeded run: 480
+    harness trials identical to v2.2.4.
 
   LAST LIGHT -- v2.2.4
   Art wiring, Phase 5 of 5 (title and polish).
@@ -2698,7 +2726,7 @@
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.2.4)</span></h1>
+      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.2.6)</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
@@ -3176,12 +3204,14 @@ function genArenaBoutMission(){
 }
 function embarkArenaBout(){
   if(G.squadSelect.length<1) return;
+  if(!arenaUnlockReady().ready) return;
   if((G.arenaChainStep||0) < ARENA_CHAIN.length) return;
   const mission = genArenaBoutMission();
   confirmEmbarkAndDeploy(mission);
 }
 function embarkArenaMission(){
   if(G.squadSelect.length<1) return;
+  if(!arenaUnlockReady().ready) return;
   const step = (G.arenaChainStep||0) + 1;
   const mission = genArenaMission(step);
   if(!mission) return;
@@ -3600,6 +3630,10 @@ function companyPowerTier(){
   const avg = topN.reduce((s,r)=>s+r.veteranLevel,0)/topN.length;
   return Math.min(4, Math.max(1, 1+Math.round(avg)));
 }
+// Boss Hunt minion counts per tier (v2.2.6: named so the test harness's buildMission
+// reads the same numbers -- the harness kept a stale [2,2,8,3] after v2.1.5 dropped T3
+// to 5 here, which is what led to the T3 boss being tuned down to 0.10x).
+const BOSSHUNT_ENEMY_COUNT = [2,2,5,3];
 function genMission(){
   const type = choice(MISSION_TYPES);
   const setting = choice(Object.keys(MISSION_SETTINGS));
@@ -3620,7 +3654,7 @@ function genMission(){
   // other mission type), so the T3-mirroring dilution fix above (built for long,
   // wave-compounding fights) doesn't apply here. All of Boss Hunt's difficulty has to
   // come from this one-time starting count, so it needs its own steeper curve.
-  else if(type==='bosshunt'){ enemyCount=[2,2,5,3][tier-1]; rounds=null; } // T3 minion count dropped 8->5 (v2.1.5) -- the old "T1/T2 confirmed working" comment and the 8-minion T3 floor claim didn't hold up against a fresh N=100 baseline (see BOSSHUNT_TIER_MULT comment below); dampener alone got T3 from 18%->71% but minions were still the bigger lever
+  else if(type==='bosshunt'){ enemyCount=BOSSHUNT_ENEMY_COUNT[tier-1]; rounds=null; } // T3 minion count dropped 8->5 (v2.1.5) -- the old "T1/T2 confirmed working" comment and the 8-minion T3 floor claim didn't hold up against a fresh N=100 baseline (see BOSSHUNT_TIER_MULT comment below); dampener alone got T3 from 18%->71% but minions were still the bigger lever
   else if(type==='purge'){ enemyCount=PURGE_ENEMY_COUNT_BASE[tier-1]+rand(0,1); rounds=null; }
   else { enemyCount=EXPLORE_ENEMY_COUNT_BASE[tier-1]+rand(0,1); rounds=null; } // explore
   const patronMult = (G.patron && G.patron.missionTypeBonus && G.patron.missionTypeBonus[type]) || 1;
@@ -4625,12 +4659,20 @@ const MISSION_TARGET_MIN_DIST = 5;
     // T2 landed exactly on target" comment predate this baseline and don't hold up
     // against it -- dampening all four tiers from scratch rather than assuming any
     // of the old values are still valid.
-    const BOSSHUNT_TIER_MULT = [0.90, 0.60, 0.10, 0.90]; // settled after two N=150 runs showed +-5-8pp swings on identical constants (natural combat RNG noise floor, not a tuning signal) -- averaged the two clean (non-stalled) reads (T1~85%, T2~83%, T3~76%, T4~92%) and nudged toward mid-band rather than chasing exact 85.0 precision the sample size can't support
+    // v2.2.6: T3 0.10 -> 0.60. The 0.10 was tuned against the harness's stale 8 T3
+    // minions (the game spawns 5), leaving T3 bosses at ~5 HP / 1 ATK / 1 DEF -- weaker
+    // than a plain Binder or Spitter. Re-measured with the real 5 minions and Lv2 squads
+    // (N=2x400): 0.60 with the ATK/DEF floor below ~87%, 0.70 ~73%, 0.50 ~93%; T1/T2/T4
+    // re-measured unchanged (~90/90/79%). Original note on the other three tiers:
+    const BOSSHUNT_TIER_MULT = [0.90, 0.60, 0.60, 0.90]; // settled after two N=150 runs showed +-5-8pp swings on identical constants (natural combat RNG noise floor, not a tuning signal) -- averaged the two clean (non-stalled) reads (T1~85%, T2~83%, T3~76%, T4~92%) and nudged toward mid-band rather than chasing exact 85.0 precision the sample size can't support
     if(!mission.isCapstone){
       const mult = BOSSHUNT_TIER_MULT[mission.tier-1] || 1;
       stats.hp = Math.round(stats.hp*mult);
-      stats.atk = Math.round(stats.atk*mult);
-      stats.def = Math.round(stats.def*mult);
+      // v2.2.6: ATK and DEF scale with the same multiplier, but a boss is never weaker
+      // than the ordinary version of its archetype (only binds at T3 in practice).
+      const plain = Object.values(ENEMY_TIERS).flat().find(e=>e.name===stats.baseType);
+      stats.atk = Math.max(plain ? plain.atk : 0, Math.round(stats.atk*mult));
+      stats.def = Math.max(plain ? plain.def : 0, Math.round(stats.def*mult));
     }
     if(mission.isCapstone){
       // Capstone keeps its per-patron narrative name (e.g. "The Hollow King") rather
@@ -7268,6 +7310,7 @@ function endBattle(win){
 // Stage 3.)
 function embarkTempleMission(){
   if(G.squadSelect.length<1) return;
+  if(!templeUnlockReady().ready) return;
   const step = (G.templeChainStep||0) + 1;
   const mission = genTempleMission(step);
   if(!mission) return;
@@ -7275,6 +7318,7 @@ function embarkTempleMission(){
 }
 function embarkTempleRite(){
   if(G.squadSelect.length<1) return;
+  if(!templeUnlockReady().ready) return;
   if((G.templeChainStep||0) < TEMPLE_CHAIN.length) return;
   const mission = genTempleRiteMission();
   confirmEmbarkAndDeploy(mission);
@@ -7669,15 +7713,20 @@ function renderNavShell(activePage){
 // here; sprites.js (LL_HUB_HTML) draws the hilltop town around them. Without it, the same
 // places are a plain list.
 function townTargets(){
-  const regionPage = key => G.hasWon ? key : 'territories';
+  // v2.2.5: a region opens on its own unlock requirement (was G.hasWon, see renderPatron)
+  const regionPage = key => regionOpen(key) ? key : 'territories';
+  const regionSub = (key, chainStep, chainLen) => {
+    const st = regionStatus(key);
+    return st==='reclaimed' ? 'reclaimed' : st==='bossready' ? 'final battle' : st==='active' ? `step ${(chainStep||0)+1} of ${chainLen}` : 'lost';
+  };
   return [
     {id:'company_hall', label:'Company Hall', sub:`${G.roster.length} in roster`, action:"gotoPatronPage('hall')"},
     {id:'recruitment_hall', label:'Recruitment', sub:`${(G.candidates||[]).length} for hire`, action:"gotoPatronPage('recruitment')"},
     {id:'expedition_board', label:'Expedition Board', sub:`${(G.missions||[]).length} missions`, action:"gotoPatronPage('board')"},
     {id:'beacon', label:'The Beacon', sub:`tithe due in ${G.titheDue}`, action:"openBeaconTithe()"},
     {id:'lands', label:'Beyond the Wall', sub:'Reclaimed Territories', action:"gotoPatronPage('territories')"},
-    {id:'temple', label:'The Temple', sub:G.templeReclaimed?'reclaimed':'lost', action:`gotoPatronPage('${regionPage('temple')}')`, reclaimed:!!G.templeReclaimed},
-    {id:'arena', label:'The Arena', sub:G.arenaReclaimed?'reclaimed':'lost', action:`gotoPatronPage('${regionPage('arena')}')`, reclaimed:!!G.arenaReclaimed}
+    {id:'temple', label:'The Temple', sub:regionSub('temple', G.templeChainStep, TEMPLE_CHAIN.length), action:`gotoPatronPage('${regionPage('temple')}')`, reclaimed:!!G.templeReclaimed},
+    {id:'arena', label:'The Arena', sub:regionSub('arena', G.arenaChainStep, ARENA_CHAIN.length), action:`gotoPatronPage('${regionPage('arena')}')`, reclaimed:!!G.arenaReclaimed}
   ];
 }
 function renderTownPage(){
@@ -7704,7 +7753,9 @@ function renderPatron(){
   if(!G.patronPage) G.patronPage = 'town';
   const page = G.patronPage;
   const regionPages = {temple:1, arena:1};
-  if(regionPages[page] && !G.hasWon){ G.patronPage='hall'; return renderPatron(); } // guard against a stale deep link before the capstone is won
+  // v2.2.5: a locked region sends you to Reclaimed Territories (was: anything before the
+  // Final Trial was won bounced to Company Hall, which locked both regions out for good).
+  if(regionPages[page] && !regionOpen(page)){ G.patronPage='territories'; return renderPatron(); }
   if(page==='town'){ el.innerHTML = renderTownPage(); return; }
   el.innerHTML = renderNavShell(page) + (
     page==='hall' ? renderCompanyHallPage() :
@@ -7753,7 +7804,9 @@ function buildCapstoneHtml(){
 }
 
 function buildTempleHtml(){
-    if(!G.hasWon) return ''; // the region-reclaim layer doesn't exist until the capstone is won
+    // (v2.2.5: a G.hasWon gate here -- "the region-reclaim layer doesn't exist until the
+    // capstone is won" -- predated v2.1.11 moving the reclaims BEFORE the capstone, and
+    // made the Temple unreachable. The page's own unlock check below is the gate.)
     if(G.templeReclaimed){
       const hurt = G.roster.filter(r=>r.alive && r.hp<r.maxhp);
       return `
@@ -7846,7 +7899,12 @@ function buildExhibitionHtml(){
 }
 function toggleExhibitionPicker(){ G.exhibitionPickerOpen = !G.exhibitionPickerOpen; render(); }
 function buildArenaHtml(){
-    if(!G.hasWon) return '';
+    // (v2.2.5: G.hasWon gate removed, same reason as buildTempleHtml.)
+    if(!regionOpen('arena')) return `
+    <div class="card">
+      <h2>The Arena</h2>
+      <small class="hint">A tournament that never learned how to end. Veterans trained to mastery: ${arenaUnlockReady().count}/${ARENA_UNLOCK_THRESHOLD}.</small>
+    </div>`;
     if(G.arenaReclaimed){
       const retrainable = G.roster.filter(retrainEligible);
       return `
@@ -7904,6 +7962,14 @@ function buildArenaHtml(){
     </div>${buildExhibitionHtml()}`;
 }
 
+// v2.2.5: whether a region's page can be opened -- its own unlock requirement, not the
+// Final Trial (which since v2.1.11 needs both regions reclaimed first).
+function regionStatus(key){
+  if(key==='temple') return territoryStatus(G.templeReclaimed, G.templeChainStep, TEMPLE_CHAIN.length, templeUnlockReady);
+  if(key==='arena') return territoryStatus(G.arenaReclaimed, G.arenaChainStep, ARENA_CHAIN.length, arenaUnlockReady);
+  return 'locked';
+}
+function regionOpen(key){ return regionStatus(key)!=='locked'; }
 function territoryStatus(reclaimedFlag, chainStep, chainLength, unlockReadyFn){
   if(reclaimedFlag) return 'reclaimed';
   if((chainStep||0) >= chainLength) return 'bossready';
