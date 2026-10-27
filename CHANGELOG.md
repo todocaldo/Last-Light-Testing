@@ -20,6 +20,71 @@ _Nothing staged yet._
 
 ---
 
+## [v2.3.0] — Saved Games (Significant)
+
+### Added
+- **Your campaign saves automatically**, in one slot on the device. It goes
+  through the platform store hook from v2.2.0: `localStorage` in the browser
+  today, Capacitor Preferences once the game is packaged.
+  - **When it saves:** on every camp page, the deploy screen, and the result
+    and victory screens.
+  - **When it doesn't:** the title, primer and patron choice (no campaign
+    yet), Help and the Hall of Fame (they can sit on top of a battle), and
+    battles themselves.
+- **Quitting mid-battle restarts the battle** (Randall, 2026-10-27). The last
+  save before a fight is its deploy screen, so reopening the game returns
+  there: same map, same enemies, squad where you placed it, with HP, gold, day
+  and Darkness as they were before the fight. A note on the deploy screen says
+  the battle restarted.
+- **Title screen:** when a save exists, **Continue** (showing Day and patron)
+  comes first. Light the Beacon becomes **New Campaign** and asks for a second
+  tap ("Replace saved campaign?") before starting over.
+- **Game over** deletes the save. So does confirming **New Campaign** in the
+  header (its button already warns "progress lost").
+- The landing page's note now says the campaign saves in the browser.
+
+### Technical
+- The game state holds Sets, a Map and shared object references; for
+  example, a result screen's survivors *are* the roster recruits. The save
+  format (`encodeSave`/`decodeSave`) keeps all three. Plain JSON would split
+  shared objects into disconnected copies, so training choices made after
+  reloading would land on copies and be lost.
+- `normalizeLoadedGame()` fills in fields a newer engine expects, so saves can
+  survive updates. If a restored deploy or result screen can't be drawn (say,
+  after a big engine change), the game falls back to the camp, which is the
+  same as cancelling that expedition. A save that can't be read at all leaves
+  the title working, with "That saved campaign couldn't be loaded."
+- No combat, mission or economy logic changed. The harness has no store, so
+  `saveGame()` does nothing there.
+
+### Verified
+- Seeded determinism check: 480 harness trials byte-identical to v2.2.6.
+- Browser, on the exact upload set and the single-file build:
+  - **Camp and result screens:** save, reload the page, Continue. The restored
+    state is byte-identical to before the reload, the result screen's
+    survivors are still the roster recruits, and a pending training choice
+    made after reloading applies to the real recruit.
+  - **Mid-battle reloads**, 11 battles across all four mission types: each
+    restored the same map, enemies, placements, roster HP and stats, day,
+    gold and Darkness, with the restart note shown. The restarted battles
+    then played out normally, and so did later missions.
+  - **Title and reset paths:** Continue shows Day and patron. New Campaign
+    asks twice before replacing the save, while the header New Campaign and
+    a game over both clear it. A corrupted save shows a message instead of
+    breaking.
+  - **Layout:** the title fits without scrolling at 393×852, 375×667,
+    1280×960 and 1366×768.
+  - **Regression:** four AI-played battles, the town hub, every camp screen,
+    and the full Temple → Arena → Final Trial path. Zero console errors.
+
+### Known Issues
+- Saves live in the browser, per device and per browser. Clearing site data
+  or using a private window loses them. Once packaged, the app keeps its own
+  save.
+- One save slot only.
+
+---
+
 ## [v2.2.6] — Fix: Tier 3 Boss Hunt Bosses Were Nearly Harmless (Minor)
 
 ### Fixed

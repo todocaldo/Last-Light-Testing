@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="art/appicon/web/favicon_32.png">
 <link rel="apple-touch-icon" href="art/appicon/web/icon_180.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>LAST LIGHT: LEAN v1 (engine v2.2.6)</title>
+<title>LAST LIGHT: LEAN v1 (engine v2.3.0)</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -29,6 +29,20 @@
   v2.1.16 changelog entry, with the full v2.1.15 entry this build carries
   forward verbatim underneath it.
   ===========================================================================
+
+  LAST LIGHT -- v2.3.0
+  Saved games (one campaign slot, saved automatically).
+  - Saves on camp pages, deploy, result and victory screens through the
+    platform store hook (localStorage now; Capacitor Preferences once
+    packaged). Battles are never saved: quitting mid-battle restarts it
+    from its deploy screen, same map and enemies, squad as placed
+    (Randall, 2026-10-27).
+  - Title screen: Continue (Day and patron) when a save exists; Light the
+    Beacon becomes New Campaign and asks twice before replacing it.
+  - Game over deletes the save; so does confirming New Campaign.
+  - The save format keeps Sets, Maps and shared object references, so a
+    restored result screen's survivors are still the roster recruits.
+  - No combat or economy logic changed; the harness has no store.
 
   LAST LIGHT -- v2.2.6
   Fix: Tier 3 Boss Hunt bosses (Binder, Spitter) were nearly harmless.
@@ -2697,6 +2711,12 @@
   .titlescreen .t-go:hover{background:#f0b552}
   .titlescreen .t-help{background:transparent;font-weight:500;font-size:16px}
   .titlescreen .t-foot{font-size:13px;color:var(--ash);line-height:1.5}
+  /* v2.3.0 saved games: Continue (with Day/patron), New Campaign asks twice */
+  .titlescreen .t-continue{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.1}
+  .titlescreen .t-continue small{font-family:'Alegreya Sans',sans-serif;font-weight:500;font-size:13px;letter-spacing:.5px;text-transform:none;opacity:.8}
+  .titlescreen .t-confirm{color:var(--blood);border-color:var(--blood)}
+  .titlescreen.has-save .t-scene{height:min(432px, max(200px, calc(100svh - 440px)))}
+  .restartnote{margin:6px 0;padding:6px 8px;border:1px solid var(--ember-dim);background:#2a2010;color:var(--ember);font-size:12px;line-height:1.4}
   @media (min-width:1120px) and (min-height:900px){
     .titlescreen{gap:18px;padding-top:36px}
     .titlescreen .t-mark{width:64px;height:64px}
@@ -2726,7 +2746,7 @@
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.2.6)</span></h1>
+      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.3.0)</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
@@ -3418,6 +3438,7 @@ function confirmNewCampaign(){
   if(confirmNewCampaignArmed){
     confirmNewCampaignArmed = false;
     if(btn) btn.textContent = '↺ New Campaign';
+    clearSavedGame(); // v2.3.0: confirming abandons the saved campaign
     startNewCampaign();
   } else {
     confirmNewCampaignArmed = true;
@@ -3757,6 +3778,132 @@ function checkDarknessTierPromotion(){
 function startNewCampaign(){
   G = { screen:'landing', patron:null, log:[] };
   render();
+}
+/* ---------------- SAVED GAMES (v2.3.0) ----------------
+   One campaign slot through the platform store hook (platform.js: localStorage in the
+   browser, Capacitor Preferences once packaged). saveGame() runs at the top of every
+   render() and only writes on screens where the state is safe to resume:
+     camp pages, deploy, result, victory.
+   Battles are never saved -- quitting mid-battle restarts it (Randall, 2026-10-27): the
+   last save before a fight is its deploy screen, so reopening lands there with the same
+   map and enemies and the squad as placed. A small marker notes that a battle was in
+   progress, so the deploy screen can say it restarted.
+   Game over deletes the save; so does confirming New Campaign in the header.
+   Format: G holds Sets, a Map and shared object references (a result screen's
+   survivors ARE the roster recruits), so the encoder keeps all three -- objects seen
+   more than once get an $id at first sight and a {$ref} after; Sets/Maps become
+   {$set}/{$map}. Plain JSON would split shared objects into disconnected copies. */
+const SAVE_KEY = 'campaign', SAVE_BATTLE_KEY = 'campaignBattle', SAVE_FORMAT = 1;
+const SAVE_SCREENS = {patron:1, deploy:1, result:1, victory:1};
+function saveStore(){ return (typeof store!=='undefined' && store && store.get && store.set) ? store : null; }
+function encodeSave(root){
+  const seen = new Map();
+  (function count(v){
+    if(v===null || typeof v!=='object') return;
+    seen.set(v, (seen.get(v)||0)+1);
+    if(seen.get(v)>1) return;
+    if(v instanceof Map){ v.forEach((x,k)=>{ count(k); count(x); }); return; }
+    if(v instanceof Set){ v.forEach(count); return; }
+    for(const k of Object.keys(v)) count(v[k]);
+  })(root);
+  const ids = new Map(); let nextId = 1;
+  function enc(v){
+    if(v===undefined || typeof v==='function') return undefined;
+    if(v===null || typeof v!=='object') return (typeof v==='number' && !isFinite(v)) ? {$num:String(v)} : v;
+    if(ids.has(v)) return {$ref:ids.get(v)};
+    let id = 0;
+    if(seen.get(v)>1){ id = nextId++; ids.set(v, id); }
+    let out;
+    if(v instanceof Set) out = {$set:[...v].map(x=>{ const e=enc(x); return e===undefined?null:e; })};
+    else if(v instanceof Map) out = {$map:[...v].map(([k,x])=>[enc(k), enc(x)])};
+    else if(Array.isArray(v)){
+      const arr = v.map(x=>{ const e=enc(x); return e===undefined?null:e; });
+      out = id ? {$arr:arr} : arr;
+    } else {
+      out = {};
+      for(const k of Object.keys(v)){ const e = enc(v[k]); if(e!==undefined) out[k] = e; }
+    }
+    if(id) out.$id = id;
+    return out;
+  }
+  return enc(root);
+}
+function decodeSave(data){
+  const byId = new Map();
+  function dec(v){
+    if(v===null || typeof v!=='object') return v;
+    if(Array.isArray(v)) return v.map(dec);
+    if('$ref' in v) return byId.get(v.$ref);
+    if('$num' in v) return Number(v.$num);
+    if('$set' in v){ const s = new Set(); if(v.$id) byId.set(v.$id, s); v.$set.forEach(x=>s.add(dec(x))); return s; }
+    if('$map' in v){ const m = new Map(); if(v.$id) byId.set(v.$id, m); v.$map.forEach(([k,x])=>m.set(dec(k), dec(x))); return m; }
+    if('$arr' in v){ const a = []; if(v.$id) byId.set(v.$id, a); v.$arr.forEach(x=>a.push(dec(x))); return a; }
+    const o = {};
+    if(v.$id) byId.set(v.$id, o);
+    for(const k of Object.keys(v)) if(k!=='$id') o[k] = dec(v[k]);
+    return o;
+  }
+  return dec(data);
+}
+function engineVersion(){ return (typeof document!=='undefined' && ((document.title||'').match(/v\d+\.\d+\.\d+/)||[''])[0]) || ''; }
+function saveGame(){
+  const st = saveStore();
+  if(!st || !G || !G.patron) return;
+  if(G.screen==='gameover'){ clearSavedGame(); return; }
+  if(G.screen==='battle'){
+    if(G.activeMission && !st.get(SAVE_BATTLE_KEY, null)) st.set(SAVE_BATTLE_KEY, {missionId:G.activeMission.id});
+    return;
+  }
+  if(!SAVE_SCREENS[G.screen]) return;
+  try{
+    st.set(SAVE_KEY, {format:SAVE_FORMAT, engine:engineVersion(), savedAt:Date.now(),
+      day:G.day, patron:G.patron.name, screen:G.screen, state:encodeSave(G)});
+    if(G.screen!=='deploy') st.set(SAVE_BATTLE_KEY, null);
+  }catch(e){ console.error('[Last Light] save failed', e); }
+}
+function clearSavedGame(){
+  const st = saveStore(); if(!st) return;
+  st.set(SAVE_KEY, null); st.set(SAVE_BATTLE_KEY, null);
+}
+function savedGameInfo(){
+  const st = saveStore(); if(!st) return null;
+  const s = st.get(SAVE_KEY, null);
+  return (s && s.format===SAVE_FORMAT && s.state) ? {day:s.day, patron:s.patron, savedAt:s.savedAt, screen:s.screen} : null;
+}
+// Fills fields a newer engine expects but an older save may lack. Keep this growing
+// rather than bumping SAVE_FORMAT, so saves survive updates wherever possible.
+function normalizeLoadedGame(){
+  if(!(G.expandedTags instanceof Set)) G.expandedTags = new Set();
+  if(!G.patronPage) G.patronPage = 'town';
+  if(!SAVE_SCREENS[G.screen]) G.screen = 'patron';
+  if(G.screen==='deploy' && (!G.deploy || !G.activeMission)) G.screen = 'patron';
+  if(G.screen==='patron'){ G.deploy = null; G.battle = null; G.result = null; G.activeMission = null; }
+  G.confirmEmbark = null; G.confirmDismissId = null; G.confirmExpandBarracks = false;
+}
+// Back to plain camp state: used when a restored deploy/result screen can't render
+// (e.g. a save from an older engine). The board already replaced an embarked mission,
+// so dropping the active one is the same as cancelling it.
+function fallBackToCamp(){
+  G.screen = 'patron'; G.patronPage = 'town';
+  G.deploy = null; G.battle = null; G.result = null; G.activeMission = null;
+}
+function continueCampaign(){
+  const st = saveStore(); if(!st) return;
+  const s = st.get(SAVE_KEY, null);
+  let loaded = null;
+  try{ if(s && s.format===SAVE_FORMAT) loaded = decodeSave(s.state); }catch(e){ console.error('[Last Light] load failed', e); }
+  if(!loaded || !loaded.patron){ G.titleNotice = "That saved campaign couldn't be loaded."; render(); return; }
+  const marker = st.get(SAVE_BATTLE_KEY, null);
+  G = loaded;
+  normalizeLoadedGame();
+  if(G.screen==='deploy' && marker && G.activeMission && marker.missionId===G.activeMission.id) G.deploy.restarted = true;
+  try{ render(); }
+  catch(e){ console.error('[Last Light] could not resume that screen; returning to camp', e); fallBackToCamp(); render(); }
+}
+// The title's "Light the Beacon" asks twice when it would replace a saved campaign.
+function lightTheBeacon(){
+  if(savedGameInfo() && !G.confirmReplaceSave){ G.confirmReplaceSave = true; render(); return; }
+  beginPrimer();
 }
 function beginArchetypeSelection(){
   G.screen='archetype';
@@ -7364,6 +7511,7 @@ function cancelExpedition(){
 
 /* ---------------- RENDER ---------------- */
 function render(){
+  saveGame(); // v2.3.0 -- only writes on camp/deploy/result/victory; see SAVED GAMES
   document.getElementById('screenLanding').style.display = G.screen==='landing' ? 'block':'none';
   document.getElementById('screenPrimer').style.display = G.screen==='primer' ? 'block':'none';
   document.getElementById('screenArchetype').style.display = G.screen==='archetype' ? 'block':'none';
@@ -7470,8 +7618,12 @@ function renderLanding(){
   const art = (typeof LL_TITLE_ART==='function') ? LL_TITLE_ART() : null;
   const ver = ((document.title||'').match(/v\d+\.\d+\.\d+/)||[''])[0];
   const sceneAlt = 'A squad stands around a tall burning beacon on ruined flagstones; beasts wait at the edge of the light, and eyes glint in the dark beyond.';
+  // v2.3.0: a saved campaign puts Continue first; Light the Beacon then asks twice.
+  const save = savedGameInfo();
+  const replacing = save && G.confirmReplaceSave;
+  const saveLine = save ? `Day ${save.day} · ${save.patron}` : '';
   el.innerHTML = `
-    <div class="titlescreen">
+    <div class="titlescreen${save?' has-save':''}">
       <div class="t-head">
         ${art ? `<img class="t-mark" src="${art.beacon}" alt="" draggable="false">` : `<div class="t-mark-text">✦</div>`}
         <h1>Last Light</h1>
@@ -7481,10 +7633,12 @@ function renderLanding(){
       ${art && art.desktop ? `<img class="t-scene desk" src="${art.desktop}" alt="${sceneAlt}" draggable="false">` : ''}
       <p class="t-quote">“The dark does not hurry. It has never needed to.”</p>
       <div class="t-actions">
-        <button class="t-go" onclick="beginPrimer()">Light the Beacon</button>
+        ${save ? `<button class="t-go t-continue" onclick="continueCampaign()">Continue<small>${saveLine}</small></button>` : ''}
+        <button class="${save?'t-help t-new':'t-go'}${replacing?' t-confirm':''}" onclick="lightTheBeacon()">${replacing ? 'Replace saved campaign?' : (save ? 'New Campaign' : 'Light the Beacon')}</button>
         <button class="t-help" onclick="openHelp()">How to Play</button>
       </div>
-      <div class="t-foot">Progress isn't saved${ver?' · engine '+ver:''}</div>
+      ${G.titleNotice ? `<div class="t-foot" style="color:var(--blood)">${G.titleNotice}</div>` : ''}
+      <div class="t-foot">${save ? 'Progress saves automatically' : 'Your campaign saves automatically'}${ver?' · engine '+ver:''}</div>
     </div>`;
 }
 // Primer screen (onboarding improvement, mockup-approved): a skippable one-minute
@@ -8240,6 +8394,7 @@ function renderDeploy(){
       <div class="card battlegrid-card">
         <h2>Deployment — ${G.activeMission.name} <span class="tag">${MISSION_SETTINGS[G.activeMission.setting].name}</span></h2>
         <small class="hint" style="margin:0">${MISSION_SETTINGS[G.activeMission.setting].flavor}</small>
+        ${d.restarted ? `<div class="restartnote">The battle was interrupted, so it starts again from deployment. Your squad is where you placed it.</div>` : ''}
         <small class="hint">${G.activeMission.desc} Click a squad member below, then click a highlighted tile on the left to place them.</small>
         <div class="gridwrap" style="margin-top:8px"><div class="grid" style="grid-template-columns:repeat(${GW},var(--cell-size))">${cells}</div></div>
         ${d.tileInfoMsg ? `<small class="hint" style="color:var(--ember)">▓ ${d.tileInfoMsg}</small>` : ''}
