@@ -20,6 +20,181 @@ _Nothing staged yet._
 
 ---
 
+## [v2.3.5] — Pacing-Pass Bug Fixes (Minor)
+
+### Fixed
+- **Purge missions could end twice.** When the site's second hold round
+  finished at the start of a round with no enemies left, the battle ended
+  inside `startNewRound()`, then `processTurns()` called `checkBattleEnd()`
+  again while `G.battle` was still set. The second end charged another day
+  (upkeep, a tithe tick, +5 Darkness) and paid the gold reward and mission
+  credit (levels, bonds, nickname rolls) twice. It hit roughly one Purge in
+  three. `checkBattleEnd()` now returns unless a battle is in progress.
+- **Wait a Day now does what it says.** Its button and hint said wounds mend,
+  but it only charged upkeep and ticked the tithe and Darkness. Waiting now
+  rests every recruit the same way sitting out an expedition does: HP heals
+  by the rest rate and injury benches tick down. A fully benched company can
+  now wait its way back to health, at a Darkness cost.
+
+### Changed
+- **Temple Order patron:** the −10% Darkness perk is removed. With the tithe
+  relieving 14 Darkness (since v2.1.3), 0.9× growth (13.5 per three missions)
+  meant the meter never filled while tithes were paid, so Temple campaigns had
+  no time limit. Instead, Temple recruits who sit out (or wait) clear injury
+  benches twice as fast. Cheaper upkeep (−15%) and faster healing (35% rest)
+  are unchanged. Badge: "Faster Recovery" replaces "−10% Darkness".
+- Injury tooltip and help text now say benches tick down on days waited too.
+
+### Verified
+- Seeded harness run: `480 f2a0ccc4f782873ed48c8c7c3718f7eda4188976 230`
+  (was `…3409e357…`, 229). The difference comes entirely from the Purge guard:
+  v2.3.4 with only that guard added gives the identical hash. The removed
+  second `endBattle()` no longer consumes random rolls, so later trials shift.
+  The Wait a Day and Temple changes don't touch combat.
+- Campaign simulation: no double-ends in a raw (unpatched) run; Temple Order
+  campaigns now end by the 59-mission Darkness limit like every other patron.
+- Browser: header and tab read v2.3.5; Wait a Day heals and ticks benches
+  (2 for Temple, 1 otherwise); no console errors; smoke battles complete.
+
+---
+
+## [v2.3.4] — Header Trim (Minor)
+
+### Changed
+- **Game header** now reads **✦ LAST LIGHT v2.3.4**. The "LEAN v1" tag and
+  "(engine …)" are gone.
+- **Browser tab title** is now "Last Light v2.3.4" (was "LAST LIGHT: LEAN v1
+  (engine v2.3.3)").
+- "engine" dropped from the version on the title screen footer, in Settings >
+  About, and on the root landing page.
+
+### Notes
+- Text only; no gameplay change. The seeded harness run is identical to v2.3.3.
+- Future version bumps: the title tag is `<title>Last Light vX.Y.Z</title>` and
+  the header span ends `letter-spacing:1px">vX.Y.Z</span></h1>`.
+
+---
+
+## [v2.3.3] — Settings Screen (Minor)
+
+### Added
+- **Settings screen**, opened from a ⚙ button in the header (on every screen,
+  battles included) or the Settings link on the title. Like Help, it opens over
+  whatever you were doing, and Back or the back gesture returns you there. It
+  is never saved as a screen.
+  - **Battle grid on phones:** A · Crisp, B · Fill (the default) or C · Smooth.
+    The test switch that sat in the battle header moved here, so battles get
+    that space back.
+  - **Battle speed:** Normal or Fast. Fast halves the pause between enemy moves
+    and after their attacks.
+  - **Motion:** Match device (the default), Reduced or Full. Reduced holds the
+    idle animations and the Beacon flicker still; attacks and deaths always
+    play.
+  - **Saved campaign:** shows what's saved (Day and patron). From the title,
+    **Delete saved campaign** asks for a second tap. During a campaign it
+    points to New Campaign instead.
+  - **About:** engine version, a note that saves stay on the device and
+    nothing is sent anywhere, and the font licences.
+- Settings are stored separately from the campaign, so they survive New
+  Campaign and game over.
+
+### Not changed
+- The version still shows in the in-game header, per the project's
+  three-places convention. Whether to tidy the header ("LEAN v1 (engine …)")
+  before release is still open.
+
+### Verified
+- Seeded harness results are identical to v2.3.2. Battle speed changes
+  `ENEMY_ANIM_DELAY_MS` only in the browser; the harness sets its own.
+- Browser, on the upload set:
+  - **Opening and closing:** from the title, from Company Hall (including the
+    back gesture) and mid-battle. Settings returns to the same battle round.
+  - **Each option:** the grid mode, battle speed (150 ms → 75 ms) and motion
+    all take effect and survive a reload.
+  - **Saved campaign:** deleting it from the title takes two taps, and the
+    title then shows Light the Beacon.
+  - **Layout:** the title still fits without scrolling at 393×852.
+  - **Regression:** save/reload/continue with a mid-battle restart, the town
+    hub, the full Temple → Arena → Final Trial path, and 10 runs of four
+    AI-played battles. Zero console errors.
+
+### Tooling
+- `smoke.js` waited badly between turns: when a recruit died on their own turn,
+  the pause while enemies moved looked like the end of the battle, and the
+  test stopped driving the squad. It now waits out that pause. 40 of 40
+  battles finished on both v2.3.2 and v2.3.3.
+
+---
+
+## [v2.3.2] — Bonds Need 6 Shared Missions (Minor)
+
+### Changed
+- **Bonds now form after 6 missions survived together** (was 5). Randall,
+  2026-10-28. `BOND_MISSIONS_THRESHOLD` 5 → 6. The bonus itself is unchanged:
+  +1 ATK and +1 DEF for each partner while they're deployed together, at most
+  once per recruit per battle, reset if a partner dies.
+- Pairs that had already shared exactly 5 missions lose their bond until they
+  survive one more mission together.
+
+### Verified
+- Browser: a pair with 5 shared missions gets no bonus in battle and no bond
+  tag in Company Hall. At 6 they get +1 ATK in battle and the tag appears.
+- Seeded harness results are identical to v2.3.1 (harness squads start with no
+  shared history, so bonds never form in harness trials).
+- Four AI-played battles: zero console errors.
+
+---
+
+## [v2.3.1] — Nickname Variety (Minor)
+
+### Changed
+- **Deployed now needs 8 missions in a row** (was 5). It had become the most
+  common nickname.
+- **Qualifying no longer means instantly named.** Once a recruit qualifies for
+  any nickname, each mission end has a **35% chance** to award one. Names
+  arrive at different times, and a recruit can qualify for more by the next
+  roll.
+- **The name is picked from everything the recruit qualifies for**, no longer
+  the first match in table order. Each category is weighted by how far past its
+  threshold the recruit is: 60 kills against a threshold of 30 counts double
+  against exactly 8 deployments, so Kills wins about two times in three. The
+  table order no longer matters.
+- A recruit still only ever earns one nickname, and it's permanent.
+
+### Verified
+- **Simulated 40 campaigns of 30 missions** (Lv-appropriate training applied,
+  wounds healed between missions, the squad's three most experienced
+  recruits):
+
+  | | v2.3.0 | v2.3.1 |
+  |---|---|---|
+  | Deployed | 58% | 18% |
+  | Wounded | 36% | 18% |
+  | Flawless | 2% | 48% |
+  | Dodged | 3% | 12% |
+  | Avoided Death | — | 4% |
+
+  Recruits who served 10+ missions still almost all get named (39 of 41). At
+  the moment of naming, most qualified for two or more categories, so the
+  weighting is doing real work.
+- Weighting check: 3,000 awards for a recruit with 60 kills and 8 deployments
+  came out Kills 65.7% (expected 66.7%).
+- Combat is untouched: seeded harness runs with the nickname check switched
+  off are identical between v2.3.0 and v2.3.1. (The new roll draws random
+  numbers, so it shifts later dice in a seeded run.)
+- Browser: four AI-played battles, the title, and save/reload/continue,
+  including a mid-battle restart. Zero console errors.
+
+### Known Issues
+- **Flawless now leads**, and Kills, Damage, Healed, First Kill and Boss Kills
+  still never appear. Their thresholds are out of reach in a normal campaign.
+  In the simulation, veterans finished 30 missions with a median of 14 kills
+  (threshold 30), 165 damage (300), 2 first kills (8), 0 boss kills (5) and 0
+  heals (30). Meanwhile Dodged (median 16 vs 6) and Flawless (12 vs 8) are
+  passed easily. Rebalancing these thresholds is the natural next step.
+
+---
+
 ## [v2.3.0] — Saved Games (Significant)
 
 ### Added

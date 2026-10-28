@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="art/appicon/web/favicon_32.png">
 <link rel="apple-touch-icon" href="art/appicon/web/icon_180.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>LAST LIGHT: LEAN v1 (engine v2.3.0)</title>
+<title>Last Light v2.3.5</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -29,6 +29,50 @@
   v2.1.16 changelog entry, with the full v2.1.15 entry this build carries
   forward verbatim underneath it.
   ===========================================================================
+
+  LAST LIGHT -- v2.3.5
+  Bug fixes from the pacing pass.
+  - Purge could end twice when the site's second hold round finished with
+    no enemies left: an extra day, +5 Darkness, and double reward and
+    mission credit. checkBattleEnd() now only runs during a battle.
+  - Wait a Day now rests the company as its button said: HP heals by the
+    rest rate and injury benches tick down. It used to do neither.
+  - Temple Order: the -10% Darkness perk is gone (with the 14-point tithe
+    it meant the Darkness never filled). Instead benched recruits recover
+    twice as fast. Cheaper upkeep and faster healing are unchanged.
+
+  LAST LIGHT -- v2.3.4
+  Header and browser tab title trimmed to "Last Light" + version (was
+  "LAST LIGHT: LEAN v1 (engine ...)"); the title footer and Settings >
+  About drop the word "engine" to match. Text only.
+
+  LAST LIGHT -- v2.3.3
+  Settings screen.
+  - Gear button in the header (every screen) and a Settings link on the
+    title. Opens over the current screen like Help; Back or the back
+    gesture returns. Never saved as a screen.
+  - Battle grid on phones A/B/C (the test switch left the battle header),
+    Battle speed Normal/Fast (ENEMY_ANIM_DELAY_MS 150/75 in the browser),
+    Motion Match device/Reduced/Full, the saved campaign (delete from the
+    title, two taps), About.
+  - Settings are kept apart from the saved campaign and survive New
+    Campaign. No combat logic changed; seeded harness identical to v2.3.2.
+
+  LAST LIGHT -- v2.3.2
+  Bonds need 6 shared missions (was 5) -- Randall, 2026-10-28.
+  - BOND_MISSIONS_THRESHOLD 5 -> 6. Bonus unchanged (+1 ATK / +1 DEF while
+    deployed together, once per battle). Harness squads start with no shared
+    history, so seeded harness results are identical to v2.3.1.
+
+  LAST LIGHT -- v2.3.1
+  Nickname variety (Randall, 2026-10-28).
+  - Deployed threshold 5 -> 8 (it had become the most common name).
+  - Qualifying for a nickname now opens a 35% chance per mission to be
+    named, and the name is picked among every category the recruit
+    qualifies for, weighted by how far past each threshold they are --
+    table order no longer decides it.
+  - Post-battle bookkeeping only; harness runs with nicknames stubbed out
+    are identical to v2.3.0.
 
   LAST LIGHT -- v2.3.0
   Saved games (one campaign slot, saved automatically).
@@ -2702,7 +2746,7 @@
   .titlescreen .t-mark-text{font-size:26px;color:var(--ember);line-height:32px}
   .titlescreen h1{margin:0;font-family:'IM Fell English SC',serif;font-weight:400;font-size:36px;letter-spacing:3px;line-height:1;color:var(--bone)}
   .titlescreen .t-sub{font-family:'Alegreya Sans SC',sans-serif;font-weight:500;font-size:14px;letter-spacing:2px;color:var(--ash)}
-  .titlescreen .t-scene{display:block;image-rendering:pixelated;border:1px solid var(--line);height:min(432px, max(216px, calc(100svh - 372px)));width:auto;max-width:100%}
+  .titlescreen .t-scene{display:block;image-rendering:pixelated;border:1px solid var(--line);height:min(432px, max(216px, calc(100svh - 412px)));width:auto;max-width:100%}
   .titlescreen .t-scene.desk{display:none}
   .titlescreen .t-quote{margin:0;font-family:'IM Fell English',serif;font-style:italic;font-size:17px;color:#a39a8d}
   .titlescreen .t-actions{display:flex;flex-direction:column;gap:10px;width:min(336px,100%)}
@@ -2715,7 +2759,17 @@
   .titlescreen .t-continue{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.1}
   .titlescreen .t-continue small{font-family:'Alegreya Sans',sans-serif;font-weight:500;font-size:13px;letter-spacing:.5px;text-transform:none;opacity:.8}
   .titlescreen .t-confirm{color:var(--blood);border-color:var(--blood)}
-  .titlescreen.has-save .t-scene{height:min(432px, max(200px, calc(100svh - 440px)))}
+  .titlescreen.has-save .t-scene{height:min(432px, max(200px, calc(100svh - 480px)))}
+  /* v2.3.3 settings */
+  .settings h3{margin:18px 0 8px;font-size:12px;letter-spacing:2px;color:var(--ash);text-transform:uppercase}
+  .settings-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .settings-head h2{margin:0;border:none;padding:0}
+  .setrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .setopt{flex:1 1 0;min-width:88px;padding-left:6px;padding-right:6px;white-space:nowrap}
+  .setopt.on{background:#2a2010;border-color:var(--ember);color:var(--ember)}
+  .setline{margin:0 0 8px}
+  .titlescreen .t-link{background:none;border:none;color:var(--ash);font-family:'Alegreya Sans',sans-serif;font-size:14px;text-decoration:underline;min-height:32px;padding:4px 8px}
+  #settingsBtn{padding-left:10px;padding-right:10px}
   .restartnote{margin:6px 0;padding:6px 8px;border:1px solid var(--ember-dim);background:#2a2010;color:var(--ember);font-size:12px;line-height:1.4}
   @media (min-width:1120px) and (min-height:900px){
     .titlescreen{gap:18px;padding-top:36px}
@@ -2746,12 +2800,13 @@
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span style="color:var(--ember);font-size:0.6em;letter-spacing:1px">LEAN v1</span> <span style="color:var(--ash);font-size:0.5em;letter-spacing:1px">(engine v2.3.0)</span></h1>
+      <h1>✦ LAST LIGHT <span class="hdr-ver" style="color:var(--ash);font-size:0.55em;letter-spacing:1px">v2.3.5</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
     <div class="headerBtnRow">
       <button onclick="openHelp()" id="helpBtn" title="How to Play">? Help</button>
+      <button onclick="openSettings()" id="settingsBtn" aria-label="Settings" title="Settings">⚙</button>
       <button class="danger" id="newCampaignBtn" onclick="confirmNewCampaign()">↺ New Campaign</button>
     </div>
   </header>
@@ -2766,6 +2821,7 @@
   <div id="screenGameOver" style="display:none"></div>
   <div id="screenVictory" style="display:none"></div>
   <div id="screenHelp" style="display:none"></div>
+  <div id="screenSettings" style="display:none"></div>
   <div id="screenHallOfFame" style="display:none"></div>
 </div>
 
@@ -3729,9 +3785,9 @@ const PATRON_ARCHETYPES = {
              summary:'A wider net when recruiting — one extra candidate shows up every time the pool refreshes.', badges:['125g Start','+1 Recruit / Pool'],
              startGold:125, upkeepMult:1.0, poolBonus:1, templeBias:false, thievesBias:false, hireDiscount:0, missionTypeBonus:null},
   temple:   {name:'Temple Order', desc:'Healing, learning, and light against the dark.', flavor:'The faith that built the Beacon\u2019s oldest wards has been quietly turning toward something its founders wouldn\u2019t recognize as their own.',
-             summary:'Cheaper upkeep, a slower-climbing Darkness meter, and faster healing for recruits sitting out an expedition.', badges:['125g Start','-15% Upkeep','-10% Darkness'],
+             summary:'Cheaper upkeep, and recruits who sit out heal faster and shake off injuries twice as quickly.', badges:['125g Start','-15% Upkeep','Faster Recovery'],
              startGold:125, upkeepMult:0.85, templeBias:false, thievesBias:false, hireDiscount:0, missionTypeBonus:null,
-             darknessMult:0.90, restHealPct:0.35}, // -10% Darkness growth per attempt, +10% between-mission HP recovery (25%->35%)
+             restHealPct:0.35, benchRecovery:2}, // +10% rest HP recovery (25%->35%); injury benches tick down 2 per rest. v2.3.5 (Randall, 2026-10-28): darknessMult 0.90 removed -- 4.5 x 3 missions fell under the 14-point tithe (raised from 12 in v2.1.3), so the Darkness never reached its limit with tithes paid.
   explorer: {name:'Explorer Guild', desc:'Scouting, exploration bonuses, and ruin knowledge.', flavor:'Every map eventually runs out of world to draw — lately, something on the other side of that edge has started drawing back.',
              summary:'Every mission pays out 8% more gold, with slightly lighter upkeep on top.', badges:['125g Start','+8% Rewards'],
              startGold:125, upkeepMult:0.95, templeBias:false, thievesBias:false, hireDiscount:0, missionTypeBonus:{explore:1.08, defense:1.08, bosshunt:1.08, purge:1.08}},
@@ -3932,6 +3988,93 @@ function closeHelp(){
   G.screen = G.previousScreen || 'landing';
   render();
 }
+/* ---------------- SETTINGS (v2.3.3) ----------------
+   Player preferences, kept apart from the saved campaign (they survive New Campaign).
+   Stored through the platform store hook under 'settings'. The grid size lives in
+   sprites.js ('gridMode') since the renderer owns it; this screen just calls it. */
+const SETTINGS_DEFAULTS = {speed:'normal', motion:'auto'};
+let settingsCache = null;
+function getSetting(key){
+  if(!settingsCache){
+    const st = (typeof saveStore==='function') ? saveStore() : null;
+    settingsCache = Object.assign({}, SETTINGS_DEFAULTS, (st && st.get('settings', null)) || {});
+  }
+  return settingsCache[key];
+}
+function setSetting(key, value){
+  getSetting(key);
+  settingsCache[key] = value;
+  const st = (typeof saveStore==='function') ? saveStore() : null;
+  if(st) st.set('settings', settingsCache);
+  applySettings();
+  render();
+}
+// Battle speed: how long enemy turns wait between moves (the harness sets its own 0).
+function applySettings(){ ENEMY_ANIM_DELAY_MS = getSetting('speed')==='fast' ? 75 : 150; }
+if(typeof window!=='undefined' && window.addEventListener) window.addEventListener('DOMContentLoaded', applySettings);
+function openSettings(){
+  if(!G) return;
+  if(G.screen!=='settings') G.settingsReturn = G.screen;
+  G.confirmDeleteSave = false;
+  G.screen = 'settings';
+  render();
+  if(typeof window!=='undefined' && window.scrollTo) window.scrollTo({top:0});
+}
+function closeSettings(){
+  G.screen = G.settingsReturn || 'landing';
+  G.confirmDeleteSave = false;
+  render();
+}
+function deleteSavedCampaign(){
+  if(!G.confirmDeleteSave){ G.confirmDeleteSave = true; render(); return; }
+  clearSavedGame();
+  G.confirmDeleteSave = false;
+  render();
+}
+function settingChoice(label, active, onclick){
+  return `<button class="setopt${active?' on':''}" onclick="${onclick}" ${active?'aria-pressed="true"':'aria-pressed="false"'}>${label}</button>`;
+}
+function renderSettings(){
+  const el = document.getElementById('screenSettings');
+  const sprites = (typeof LLSprites!=='undefined' && LLSprites && LLSprites.setMode) ? LLSprites : null;
+  const grid = sprites ? sprites.mode : null;
+  const speed = getSetting('speed'), motion = getSetting('motion');
+  const save = savedGameInfo();
+  const fromTitle = G.settingsReturn==='landing' || !G.patron;
+  const ver = engineVersion();
+  el.innerHTML = `
+    <div class="card settings">
+      <div class="settings-head"><h2>Settings</h2><button onclick="closeSettings()">← Back</button></div>
+      ${sprites ? `
+      <h3>Battle grid on phones</h3>
+      <div class="setrow">
+        ${settingChoice('A · Crisp', grid==='A', "LLSprites.setMode('A');render()")}
+        ${settingChoice('B · Fill', grid==='B', "LLSprites.setMode('B');render()")}
+        ${settingChoice('C · Smooth', grid==='C', "LLSprites.setMode('C');render()")}
+      </div>
+      <small class="hint">A keeps pixels perfectly sharp but leaves the grid smaller. B fills the screen width (recommended). C fills it with slightly softened pixels. Phones only; desktop is always sharp.</small>` : ''}
+      <h3>Battle speed</h3>
+      <div class="setrow">
+        ${settingChoice('Normal', speed==='normal', "setSetting('speed','normal')")}
+        ${settingChoice('Fast', speed==='fast', "setSetting('speed','fast')")}
+      </div>
+      <small class="hint">Fast halves the pause between enemy moves and after their attacks.</small>
+      <h3>Motion</h3>
+      <div class="setrow">
+        ${settingChoice('Match device', motion==='auto', "setSetting('motion','auto')")}
+        ${settingChoice('Reduced', motion==='reduce', "setSetting('motion','reduce')")}
+        ${settingChoice('Full', motion==='full', "setSetting('motion','full')")}
+      </div>
+      <small class="hint">Reduced holds idle animations and the Beacon flicker still. Attacks and deaths always play, since they show what happened.</small>
+      <h3>Saved campaign</h3>
+      ${save ? `<p class="setline">Day ${save.day} · ${save.patron} — saved automatically.</p>` : `<p class="setline">No campaign saved.</p>`}
+      ${save && fromTitle ? `<button class="${G.confirmDeleteSave?'danger':''}" onclick="deleteSavedCampaign()">${G.confirmDeleteSave?'Delete it? This cannot be undone':'Delete saved campaign'}</button>` : ''}
+      ${save && !fromTitle ? `<small class="hint">To start over, use New Campaign at the top of the screen.</small>` : ''}
+      <h3>About</h3>
+      <p class="setline">Last Light${ver?' '+ver:''}</p>
+      <small class="hint">Your campaign and settings are saved in this browser on this device; nothing is sent anywhere. Fonts: IM Fell English and Alegreya Sans, under the SIL Open Font License.</small>
+    </div>`;
+}
 // Hall of Fame (v2.0.37): combines active roster, retirees (G.retirees, already
 // permanent), and fallen recruits (G.hallOfFameArchive, newly archived in endBattle()
 // right before they'd otherwise be lost). status distinguishes the three so the display
@@ -4037,9 +4180,32 @@ function chargeUpkeep(days){
 // order established at the real mission-end call site (v2.0.53) -- no Darkwarden
 // win-bonus here, since that's specifically gated on winning a mission, which
 // waiting isn't.
+// Resting (v2.3.5): what a recruit gets for a day off -- sitting out an expedition or a
+// Wait a Day. HP heals by the patron's rest rate and an injury bench ticks down
+// (Temple Order: 2 per rest instead of 1).
+function benchRecoveryPerRest(){ return (G.patron && G.patron.benchRecovery) || 1; }
+function restRecruit(r, restedNames, recoveredNames){
+  const restHealPct = (G.patron && G.patron.restHealPct) ? G.patron.restHealPct : 0.25;
+  if(r.hp<r.maxhp){
+    const before=r.hp;
+    r.hp=Math.min(r.maxhp, r.hp+Math.ceil(r.maxhp*restHealPct));
+    if(r.hp>before) restedNames.push(r.name);
+  }
+  if(r.injuryBenchRemaining>0){
+    r.injuryBenchRemaining = Math.max(0, r.injuryBenchRemaining - benchRecoveryPerRest());
+    if(r.injuryBenchRemaining===0) recoveredNames.push(r.name);
+  }
+}
 function advanceDayAction(){
   chargeUpkeep(1);
   if(G.gameOver){ render(); return; }
+  // v2.3.5: waiting now actually rests the company, as its button always said ("lets
+  // wounds mend"). It used to only charge upkeep and tick the tithe and Darkness, so a
+  // fully benched roster could never recover by waiting.
+  const restedNames=[], recoveredNames=[];
+  G.roster.forEach(r=>restRecruit(r, restedNames, recoveredNames));
+  if(restedNames.length) addLog(`While the company rested, ${restedNames.join(', ')} recovered from their wounds.`,'info');
+  if(recoveredNames.length) addLog(`${recoveredNames.join(', ')} ${recoveredNames.length===1?'is':'are'} fit for duty again.`,'good');
   processTithe();
   if(G.gameOver){ render(); return; }
   processDarkness();
@@ -4234,7 +4400,7 @@ function effectiveCost(c){ return Math.max(5, Math.round(c.cost * (1 - (G.patron
 // Positive-only by design (no rivalry/incompatibility penalties). Applied fresh every
 // battle in beginBattle(), reverted at the start of endBattle() -- never a permanent
 // stat change, since squad units are direct G.roster references, not battle-local copies.
-const BOND_MISSIONS_THRESHOLD = 5;
+const BOND_MISSIONS_THRESHOLD = 6; // v2.3.2 (Randall, 2026-10-28): was 5
 const BOND_ATK_BONUS = 1;
 const BOND_DEF_BONUS = 1;
 const BARRACKS_BASE_CAP = 6;
@@ -6743,7 +6909,11 @@ function attackUnit(attacker,defender){
 }
 
 function checkBattleEnd(){
-  if(!G.battle) return;
+  // v2.3.5: only while a battle is in progress. A Purge (or Cleanse/Rite) hold that
+  // completes at the start of a round ends the battle from inside startNewRound(), and
+  // processTurns() then called this again with G.battle still set -- ending it twice
+  // (an extra day, +5 Darkness, double reward and mission credit).
+  if(!G.battle || G.screen!=='battle') return;
   const alivePlayers=G.battle.units.filter(u=>u.side==='player'&&u.alive);
   if(alivePlayers.length===0){ endBattle(false); return; }
   // (v2.1.11: Relic's "return to entrance" win check -- and the bug-fix history behind
@@ -7172,15 +7342,19 @@ function endTurn(){
 
 // (v2.1.15: rollInjury() removed -- injuries no longer carry a stat penalty, see
 // applyInjury() below and the stakes-rework note above INJURED_HP_THRESHOLD.)
-// Nickname system (v2.0.7): 10 tracked achievement categories, checked in priority order
-// below. Only the FIRST threshold a recruit crosses ever assigns a nickname -- once
-// r.nickname is set it's permanent, checkNicknameUnlock() becomes a no-op for that
-// recruit forever after. Thresholds are explicitly flagged as tunable pending real
+// Nickname system (v2.0.7): 10 tracked achievement categories. A recruit only ever earns
+// one -- once r.nickname is set it's permanent, checkNicknameUnlock() becomes a no-op for
+// that recruit forever after. Thresholds are explicitly flagged as tunable pending real
 // playtesting, not final balance numbers.
+// v2.3.1 (Randall, 2026-10-28): Deployed had become the most common name, because the
+// first qualifying category in table order won and Deployed was the easiest to reach.
+// Now (1) qualifying only opens a 35% chance per mission to award a name, and (2) the
+// award picks among every category the recruit qualifies for, weighted by how far past
+// its threshold they are -- so table order no longer matters. Deployed also 5 -> 8.
 const NICKNAME_CATEGORIES = [
   {key:'wounded', threshold:3, stat:'timesInjured',
     suffixes:['Scarred','Bloody','Battered','Tough','Grizzled','Weathered','Marked','Ironclad','Unbroken','Hardbitten']},
-  {key:'deployed', threshold:5, stat:'consecutiveDeployments',
+  {key:'deployed', threshold:8, stat:'consecutiveDeployments', // v2.3.1: 5 -> 8 (was the most common name)
     suffixes:['Brave','Determined','Hardened','Steadfast','Tireless','Relentless','Dependable','Unyielding','Resolute','Stalwart']},
   {key:'avoidedDeath', threshold:3, stat:'deathsAvoided',
     suffixes:['Lucky','Undying','Blessed','Charmed','Deathless','Fated','Untouchable','Favored','Reprieved','Unkillable']},
@@ -7211,15 +7385,18 @@ function nicknameCategoryDesc(key){
     damage:'total damage dealt'};
   return d[key] || key;
 }
+const NICKNAME_AWARD_CHANCE = 0.35; // v2.3.1: per mission end, once a recruit qualifies for any category
 function checkNicknameUnlock(r){
-  if(r.nickname) return; // only 1 per recruit, first earned locks it in permanently
-  for(const cat of NICKNAME_CATEGORIES){
-    if((r[cat.stat]||0) >= cat.threshold){
-      r.nickname = {category:cat.key, suffix: choice(cat.suffixes)};
-      addLog(`${r.name} has earned a new name: "the ${r.nickname.suffix}."`,'good');
-      return;
-    }
-  }
+  if(r.nickname) return; // only 1 per recruit; once earned it's permanent
+  const qualified = NICKNAME_CATEGORIES.filter(cat=>(r[cat.stat]||0) >= cat.threshold);
+  if(!qualified.length) return;
+  if(Math.random() >= NICKNAME_AWARD_CHANCE) return; // not this mission -- they may qualify for more by the next roll
+  // Weighted by how far past its threshold each category is (exactly at it = 1, double = 2).
+  const weights = qualified.map(cat=>(r[cat.stat]||0) / cat.threshold);
+  let roll = Math.random() * weights.reduce((a,b)=>a+b, 0), cat = qualified[qualified.length-1];
+  for(let i=0;i<qualified.length;i++){ roll -= weights[i]; if(roll < 0){ cat = qualified[i]; break; } }
+  r.nickname = {category:cat.key, suffix: choice(cat.suffixes)};
+  addLog(`${r.name} has earned a new name: "the ${r.nickname.suffix}."`,'good');
 }
 function applyInjury(r){
   r.injuryBenchRemaining = rollInjuryBenchLength();
@@ -7301,18 +7478,9 @@ function endBattle(win){
   fallen.forEach(r=>{ G.hallOfFameArchive.push({...r, deathCause:'fell'}); });
   G.roster=G.roster.filter(r=>!fallenIds.includes(r.id));
   const restedNames=[], recoveredNames=[];
-  const restHealPct = (G.patron && G.patron.restHealPct) ? G.patron.restHealPct : 0.25;
   G.roster.forEach(r=>{
     if(!G.deploy.squadIds.includes(r.id)){
-      if(r.hp<r.maxhp){
-        const before=r.hp;
-        r.hp=Math.min(r.maxhp, r.hp+Math.ceil(r.maxhp*restHealPct));
-        if(r.hp>before) restedNames.push(r.name);
-      }
-      if(r.injuryBenchRemaining>0){
-        r.injuryBenchRemaining -= 1;
-        if(r.injuryBenchRemaining===0) recoveredNames.push(r.name);
-      }
+      restRecruit(r, restedNames, recoveredNames); // v2.3.5: shared with Wait a Day
       r.consecutiveDeployments = 0; // sat out this expedition -- streak broken
     }
   });
@@ -7522,11 +7690,16 @@ function render(){
   document.getElementById('screenGameOver').style.display = G.screen==='gameover' ? 'block':'none';
   document.getElementById('screenVictory').style.display = G.screen==='victory' ? 'block':'none';
   document.getElementById('screenHelp').style.display = G.screen==='help' ? 'block':'none';
+  document.getElementById('screenSettings').style.display = G.screen==='settings' ? 'block':'none';
   document.getElementById('screenHallOfFame').style.display = G.screen==='hallOfFame' ? 'block':'none';
   document.getElementById('mainHeader').className = (G.screen==='battle' || G.screen==='deploy') ? 'compact-header' : (G.screen==='patron' ? 'compact-header camp-header' : (G.screen==='landing' ? 'title-header' : ''));
 
   if(G.screen==='help'){
     renderHelp();
+    return;
+  }
+  if(G.screen==='settings'){
+    renderSettings();
     return;
   }
   if(G.screen==='hallOfFame'){
@@ -7637,8 +7810,9 @@ function renderLanding(){
         <button class="${save?'t-help t-new':'t-go'}${replacing?' t-confirm':''}" onclick="lightTheBeacon()">${replacing ? 'Replace saved campaign?' : (save ? 'New Campaign' : 'Light the Beacon')}</button>
         <button class="t-help" onclick="openHelp()">How to Play</button>
       </div>
+      <button class="t-link" onclick="openSettings()">Settings</button>
       ${G.titleNotice ? `<div class="t-foot" style="color:var(--blood)">${G.titleNotice}</div>` : ''}
-      <div class="t-foot">${save ? 'Progress saves automatically' : 'Your campaign saves automatically'}${ver?' · engine '+ver:''}</div>
+      <div class="t-foot">${save ? 'Progress saves automatically' : 'Your campaign saves automatically'}${ver?' · '+ver:''}</div>
     </div>`;
 }
 // Primer screen (onboarding improvement, mockup-approved): a skippable one-minute
@@ -7726,7 +7900,7 @@ function renderHelp(){
       <p>Recruits who fight enough missions together form a Bond, giving both a small stat bonus whenever they're deployed together again.</p>
 
       <h3 style="margin-top:16px">Healing, Wounds &amp; Injuries</h3>
-      <p><b>Injured</b> — if a recruit survives a mission at 25% max HP or below, or would have died outright but is narrowly pulled back from the brink (a flat 75% chance to survive instead of falling), they come back Injured: benched for 2-4 expeditions, no stat penalty, just unavailable for deployment (including Exhibition Matches) until they've recovered. Sitting out an expedition also heals HP as normal. A deep enough roster to rotate injured recruits out is the main way to manage this.</p>
+      <p><b>Injured</b> — if a recruit survives a mission at 25% max HP or below, or would have died outright but is narrowly pulled back from the brink (a flat 75% chance to survive instead of falling), they come back Injured: benched for 2-4 expeditions, no stat penalty, just unavailable for deployment (including Exhibition Matches) until they've recovered. Each expedition sat out, or day spent with Wait a Day, counts toward the recovery and heals HP as normal. A deep enough roster to rotate injured recruits out is the main way to manage this.</p>
 
       <h3 style="margin-top:16px">Choosing a Mission</h3>
       <p>The Expedition Board lists available missions, each with a type, tier, and reward. Higher-tier missions pay more but are harder. Some regions offer a connected chain of missions working toward reclaiming that territory for good.</p>
@@ -8170,7 +8344,7 @@ function renderCompanyHallPage(){
     if(r.canCast) parts.push(tappableTag(`r${r.id}-cast`, ic('action_cast','✦',12)+' Caster', `Can spend an action to channel a ranged, armor-piercing bolt instead of a normal attack. Bolt power ${3+(r.veteranLevel||0)*2} (3 + veteran level×2), then minus half the target's DEF, ±1-2 variance, minimum 1. Ignores half armor.`, 'color:var(--corrupt);border-color:var(--corrupt)', 'max-height:180px'));
     if(r.equipment&&r.equipment.hand) parts.push(tappableTag(`r${r.id}-hand`, ic('tag_ring','💍',12)+' '+r.equipment.hand.name, r.equipment.hand.flavor+(formatTraitMods(r.equipment.hand)?' <b style="color:var(--ember)">('+formatTraitMods(r.equipment.hand)+')</b>':''), 'color:var(--ember);border-color:var(--ember-dim)'));
     if(r.equipment&&r.equipment.head) parts.push(tappableTag(`r${r.id}-head`, ic('tag_crown','👑',12)+' '+r.equipment.head.name, r.equipment.head.flavor+(formatTraitMods(r.equipment.head)?' <b style="color:var(--ember)">('+formatTraitMods(r.equipment.head)+')</b>':''), 'color:var(--ember);border-color:var(--ember-dim)'));
-    if(r.injuryBenchRemaining>0) parts.push(tappableTag(`r${r.id}-injured`, `${ic('tag_injured','🩹',12)} Injured (${r.injuryBenchRemaining} left)`, `Benched -- can't be deployed (including Exhibition Matches) for ${r.injuryBenchRemaining} more expedition${r.injuryBenchRemaining===1?'':'s'}. No stat penalty, just needs the rest. Ticks down by 1 each expedition sat out.`, 'color:var(--blood);border-color:var(--blood)'));
+    if(r.injuryBenchRemaining>0) parts.push(tappableTag(`r${r.id}-injured`, `${ic('tag_injured','🩹',12)} Injured (${r.injuryBenchRemaining} left)`, `Benched -- can't be deployed (including Exhibition Matches) for ${r.injuryBenchRemaining} more expedition${r.injuryBenchRemaining===1?'':'s'}. No stat penalty, just needs the rest. Ticks down by ${benchRecoveryPerRest()} each expedition sat out or day waited.`, 'color:var(--blood);border-color:var(--blood)'));
     const bondedIds = Object.keys(r.missionsWith||{}).filter(id=>(r.missionsWith[id]||0)>=BOND_MISSIONS_THRESHOLD && G.roster.find(x=>x.id===Number(id)));
     bondedIds.forEach(otherId=>{
       const count = r.missionsWith[otherId];
@@ -8223,10 +8397,10 @@ function renderCompanyHallPage(){
         <button style="white-space:nowrap;${G.confirmExpandBarracks?'color:var(--blood);border-color:var(--blood)':''}" onclick="expandBarracks()" ${G.gold<barracksExpansionCost()?'disabled':''}>${G.confirmExpandBarracks?`Confirm? (${barracksExpansionCost()}g)`:`Expand (+${BARRACKS_SLOTS_PER_EXPANSION}, ${barracksExpansionCost()}g)`}</button>
       </p>
       <p style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="subtle" onclick="advanceDayAction()" title="Skip a day without embarking -- pays retainers, lets wounds mend, no mission attempted">${ic('page_wait_day','☀',24)} Wait a Day (pay retainers)</button>
+        <button class="subtle" onclick="advanceDayAction()" title="Skip a day without embarking -- pays retainers, everyone rests (HP heals, injury benches tick down), no mission attempted">${ic('page_wait_day','☀',24)} Wait a Day (pay retainers)</button>
         <button class="subtle" onclick="openHallOfFame()">${ic('page_hall_of_fame','🏆',24)} Hall of Fame</button>
       </p>
-      <small class="hint">Wait a Day skips a day without embarking: retainers are paid and wounds mend, but no mission is attempted.</small>
+      <small class="hint">Wait a Day skips a day without embarking: retainers are paid and everyone rests (HP heals, injury benches tick down), but the tithe clock and the Darkness still advance.</small>
     </div>`;
 }
 function renderRecruitmentOfficePage(){
