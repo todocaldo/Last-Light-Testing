@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="art/appicon/web/favicon_32.png">
 <link rel="apple-touch-icon" href="art/appicon/web/icon_180.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Last Light v2.3.5</title>
+<title>Last Light v2.4.0</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -29,6 +29,46 @@
   v2.1.16 changelog entry, with the full v2.1.15 entry this build carries
   forward verbatim underneath it.
   ===========================================================================
+
+  LAST LIGHT -- v2.4.0
+  Late-game ramp (new system).
+  - The Darkness Deepens: at company Tier 4, Tier 4 board missions are
+    Darkened by standing (+1 at standing 2, +2 at standing 3; the harder
+    mission one deeper, with double gear chance). Easier missions never.
+  - Weariness: Lv3 veterans take -1 ATK/DEF per consecutive mission past
+    the third (max -3), that battle only; one mission off or a Wait a Day
+    clears it. Exhibition Matches no longer reset the rest of the roster's
+    streak.
+
+  LAST LIGHT -- v2.3.9
+  Region retune ("climax" option, chosen from campaign simulation): the
+  Endless Rite (tier 6 -> 7) and the Endless Bout (tier 6 -> 8) are the
+  region's real tests; Arena steps have fewer waves (4/5/6/7 -> 3/4/4/5),
+  about 13% less Arena play. Chain steps otherwise unchanged; payouts
+  unchanged (rewardTier keeps each step's old payout).
+
+  LAST LIGHT -- v2.3.8
+  Under-tier training rule switched on: a recruit only gains level
+  progress from a mission at least one tier above their level (Lv0 any,
+  Lv1 T2+, Lv2 T3+). Exhibition Matches are exempt. Board cards and the
+  post-mission log say who gained nothing; How to Play explains it.
+  No combat changes.
+
+  LAST LIGHT -- v2.3.7
+  Mixed Expedition Board: one mission a tier below the company tier, one
+  at it, one a tier above (clamped 1-4), each labelled Easier / Standard /
+  Harder. Taken or replaced missions regenerate in the same slot. Adds
+  r.trainingMissions (level progress) beside r.missionsSurvived (record)
+  and an UNDER_TIER_NO_TRAINING switch, off in this version.
+  No combat changes.
+
+  LAST LIGHT -- v2.3.6
+  Pacing step 1, chosen from a campaign simulation.
+  - Temple unlocks after 5 paid tithes (70 Darkness held back), was 8.
+  - Arena unlocks once 4 recruits have ever reached Lv3, was 6; its locked
+    text now says everyone who ever reached Lv3 counts.
+  - Veteran levels at 2/6/12 missions survived, was 2/5/9.
+  No combat changes.
 
   LAST LIGHT -- v2.3.5
   Bug fixes from the pacing pass.
@@ -2770,6 +2810,14 @@
   .setline{margin:0 0 8px}
   .titlescreen .t-link{background:none;border:none;color:var(--ash);font-family:'Alegreya Sans',sans-serif;font-size:14px;text-decoration:underline;min-height:32px;padding:4px 8px}
   #settingsBtn{padding-left:10px;padding-right:10px}
+  /* v2.3.7 mixed board */
+  .tag.tierrel.easier{color:var(--good);border-color:var(--good)}
+  .tag.tierrel.harder{color:var(--blood);border-color:var(--blood)}
+  .tag.tierrel.standard{color:var(--ember);border-color:var(--ember)}
+  .missioncard .trainnote{display:block;margin-top:6px}
+  /* v2.4.0 Darkened missions */
+  .tag.darkened{color:#9b7fd1;border-color:#9b7fd1}
+  .darkened-text{color:#9b7fd1}
   .restartnote{margin:6px 0;padding:6px 8px;border:1px solid var(--ember-dim);background:#2a2010;color:var(--ember);font-size:12px;line-height:1.4}
   @media (min-width:1120px) and (min-height:900px){
     .titlescreen{gap:18px;padding-top:36px}
@@ -2800,7 +2848,7 @@
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span class="hdr-ver" style="color:var(--ash);font-size:0.55em;letter-spacing:1px">v2.3.5</span></h1>
+      <h1>✦ LAST LIGHT <span class="hdr-ver" style="color:var(--ash);font-size:0.55em;letter-spacing:1px">v2.4.0</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
@@ -2934,7 +2982,9 @@ function itemDropChance(){
   const tier = G.activeMission && G.activeMission.tier;
   const setting = G.activeMission && G.activeMission.setting;
   const base = ITEM_DROP_CHANCE_BY_TIER[tier] !== undefined ? ITEM_DROP_CHANCE_BY_TIER[tier] : ITEM_DROP_CHANCE_BY_TIER[1];
-  return base + (ITEM_DROP_LOCALE_BONUS[setting] || 0);
+  const chance = base + (ITEM_DROP_LOCALE_BONUS[setting] || 0);
+  const m = G.activeMission; // v2.4.0: the Darkened Harder mission doubles it
+  return (m && m.darkDepth && (m.slot||0) > 0) ? chance*DARKENED_GEAR_MULT : chance;
 }
 const HAND_ITEMS = [
  {name:'Iron Ring',mod:{atk:1},flavor:'A dull band, but it steadies the swing.'},
@@ -3152,7 +3202,7 @@ const CAPSTONE_FLAVOR = {
   thieves:  {name:'The Thirteenth Vault', glyph:'♠', bossName:'The Thing in the Thirteenth Vault',
              desc:'One vault the Guild has never dared open. Everything you\u2019ve stolen has been rehearsal for this.'}
 };
-const TEMPLE_UNLOCK_THRESHOLD = 100; // was 15 missions-with-a-healer (opaque, invisible squad-composition tracking); now total darkness reduced via successful tithe payments -- ~7 tithes at the current DARKNESS_PER_TITHE=14, thematically tied to "keeping the darkness at bay earns the Temple's attention" rather than a hidden background-type requirement
+const TEMPLE_UNLOCK_THRESHOLD = 70; // v2.3.6 (Randall, 2026-10-28): 100 -> 70, i.e. 5 paid tithes instead of 8, so the Temple opens around mission 15 instead of 24 (the pacing pass found missions 12-24 had nothing new). Earlier history: was 15 missions-with-a-healer (opaque, invisible squad-composition tracking); now total darkness reduced via successful tithe payments -- ~7 tithes at the current DARKNESS_PER_TITHE=14, thematically tied to "keeping the darkness at bay earns the Temple's attention" rather than a hidden background-type requirement
 function templeUnlockReady(){
   const count = G.templeDarknessReduced||0;
   return {count, threshold:TEMPLE_UNLOCK_THRESHOLD, ready: count >= TEMPLE_UNLOCK_THRESHOLD};
@@ -3162,8 +3212,8 @@ function templeUnlockReady(){
 // after confirming a single global value can't satisfy all 4 targets at once (Steps
 // 1-2 stayed pinned at 100% while Step 4 overshot hard to 35% at the same settings).
 // Indexed by step-1 (step 1 = index 0).
-const CLEANSE_WAVE_SIZE = [4, 4, 2, 2];
-const CLEANSE_WAVE_CAP = [6, 6, 6, 4];
+const CLEANSE_WAVE_SIZE = [4, 4, 2, 2]; // v2.3.9 region retune (was [4, 4, 2, 2])
+const CLEANSE_WAVE_CAP = [6, 6, 6, 4]; // v2.3.9 (was [6, 6, 6, 4])
 // The Endless Rite's own gentler wave rule (v2.1.2), same rationale as cleanse's --
 // see the boss/wave comments above. Distinct constants since this is a single
 // bespoke mission, not a 4-step chain like TEMPLE_CHAIN.
@@ -3212,15 +3262,15 @@ const PURGE_ENEMY_COUNT_BASE = [2, 2, 3, 7]; // T3 dropped further 5->3 (73.8%->
 // (v2.1.11: STALK_ENEMY_COUNT_BASE removed with the Stalk mission type -- scope-
 // reduction Stage 2.)
 const ARENA_CHAIN_WAVE_CADENCE = [2, 2, 2, 2]; // fire a wave every N rounds, per step
-const ARENA_CHAIN_WAVE_SIZE = [4, 4, 2, 1]; // enemies per wave, per step -- confirmed correct: size=1 was the deliberately chosen final value for Step 4 (paired with startEnemies=7), landing exactly on the 75% target. I incorrectly "restored" this to 2 a moment ago, which was wrong -- own mistake, corrected back.
+const ARENA_CHAIN_WAVE_SIZE = [4, 4, 2, 1]; // v2.3.9 region retune (was [4, 4, 2, 1]). Earlier note: // enemies per wave, per step -- confirmed correct: size=1 was the deliberately chosen final value for Step 4 (paired with startEnemies=7), landing exactly on the 75% target. I incorrectly "restored" this to 2 a moment ago, which was wrong -- own mistake, corrected back.
 const TEMPLE_CHAIN = [
-  {step:1, name:'The Locked Cloister', tier:3, wardCount:1, enemyCount:3,
+  {step:1, name:'The Locked Cloister', tier:3, rewardTier:3, wardCount:1, enemyCount:3,
    desc:"The outer gate hasn't been opened in years. Whatever's inside has had a long time alone with the dark."},
-  {step:2, name:'The Unlit Nave', tier:4, wardCount:2, enemyCount:3,
+  {step:2, name:'The Unlit Nave', tier:4, rewardTier:4, wardCount:2, enemyCount:3,
    desc:'Every ward-lamp in the hall has gone cold. Something has been living in that dark long enough to resent the light.'},
-  {step:3, name:'The Choir Undercroft', tier:5, wardCount:2, enemyCount:3,
+  {step:3, name:'The Choir Undercroft', tier:5, rewardTier:5, wardCount:2, enemyCount:3,
    desc:"Beneath the altar, the old chants are still being sung — just not by anyone who should still be singing them."},
-  {step:4, name:'The Last Reliquary', tier:6, wardCount:2, enemyCount:3,
+  {step:4, name:'The Last Reliquary', tier:6, rewardTier:6, wardCount:2, enemyCount:3,
    desc:"Whatever's kept the Temple's deepest chamber sealed this long didn't do it to protect what's inside. It did it to protect everyone outside."}
 ];
 function genTempleMission(step){
@@ -3228,23 +3278,23 @@ function genTempleMission(step){
   if(!def) return null;
   return {id:uid(), type:'cleanse', tier:def.tier, wardCount:def.wardCount, setting: choice(Object.keys(MISSION_SETTINGS)),
     isTempleChain:true, templeStep:def.step, name:def.name, enemyCount:def.enemyCount,
-    reward:{gold:120+def.tier*30}, rounds:null, desc:def.desc, isCapstone:false};
+    reward:{gold:120+(def.rewardTier||def.tier)*30}, /* v2.3.9: payout unchanged when the tier was raised */ rounds:null, desc:def.desc, isCapstone:false};
 }
 function genTempleRiteMission(){
-  return {id:uid(), type:'templerite', tier:6, setting: choice(Object.keys(MISSION_SETTINGS)),
+  return {id:uid(), type:'templerite', tier:7, /* v2.3.9 region retune (was 6) */ setting: choice(Object.keys(MISSION_SETTINGS)),
     isTempleRite:true, name:'The Endless Rite', enemyCount:3, // was 4, now 3 per direction -- boss ambushes into whatever's still alive from the starting fight, so a smaller starting count matters more here than a normal sequential encounter
     reward:{gold:400}, rounds:null,
     desc:"Whatever answered when the wards went dark has been standing vigil ever since — not guarding the Temple, but finishing a rite that ended centuries ago without it. It doesn't know the difference between you and whoever it was originally protecting this place from. That won't help you.",
     isCapstone:false};
 }
 const ARENA_CHAIN = [
-  {step:1, name:"The Novice's Circle", tier:3, enemyCount:3, totalWaves:4,
+  {step:1, name:"The Novice's Circle", tier:3, rewardTier:3, enemyCount:3, totalWaves:3,
    desc:"Nobody remembers when the first bout here ended. They just remember it never really did."},
-  {step:2, name:'The Iron Bracket', tier:4, enemyCount:3, totalWaves:5,
+  {step:2, name:'The Iron Bracket', tier:4, rewardTier:4, enemyCount:3, totalWaves:4,
    desc:'Every round here used to have a winner. Lately, it just has survivors.'},
-  {step:3, name:"The Champions' Table", tier:5, enemyCount:3, totalWaves:6,
+  {step:3, name:"The Champions' Table", tier:5, rewardTier:5, enemyCount:3, totalWaves:4,
    desc:'There are names carved into these seats. Some of them are still down there fighting.'},
-  {step:4, name:"The Undefeated's Return", tier:6, enemyCount:7, totalWaves:7,
+  {step:4, name:"The Undefeated's Return", tier:6, rewardTier:6, enemyCount:7, totalWaves:5,
    desc:"It doesn't matter how the last bout ended. There's always another one."}
 ];
 // v2.1.3+ rework (confirmed v2.1.7: ARENA_CHAIN sets totalWaves on every one of its 4
@@ -3262,7 +3312,7 @@ function genArenaMission(step){
   if(!def) return null;
   return {id:uid(), type:'trial', tier:def.tier, setting: choice(Object.keys(MISSION_SETTINGS)),
     isArenaChain:true, arenaStep:def.step, name:def.name, enemyCount:def.enemyCount, totalWaves:def.totalWaves,
-    reward:{gold:120+def.tier*30}, rounds:null, desc:def.desc, isCapstone:false};
+    reward:{gold:120+(def.rewardTier||def.tier)*30}, /* v2.3.9: payout unchanged when the tier was raised */ rounds:null, desc:def.desc, isCapstone:false};
 }
 function genArenaBoutMission(){
   // Win-rate tuning (v2.0.3): originally phases:3, enemyCount:6+rand(0,1) measured 0.0-0.7%
@@ -3272,7 +3322,7 @@ function genArenaBoutMission(){
   // phases:2+enemyCount:4 measured 4.0% (n=150), landing in-band while keeping the "won't
   // stay down the first time" comeback beat the flavor text describes (phases:1 also hit
   // 4.0% but removes that beat entirely -- rejected on flavor grounds, not balance).
-  return {id:uid(), type:'arenabout', tier:6, setting: choice(Object.keys(MISSION_SETTINGS)),
+  return {id:uid(), type:'arenabout', tier:8, /* v2.3.9 region retune (was 6) */ setting: choice(Object.keys(MISSION_SETTINGS)),
     isArenaBout:true, name:'The Endless Bout', enemyCount:4, rounds:14, phases:2,
     reward:{gold:400},
     desc:"It has never once accepted a loss -- not tonight, not in longer than anyone keeping count can remember. Beating it down isn't the hard part. Making it stay down is.",
@@ -3293,7 +3343,7 @@ function embarkArenaMission(){
   if(!mission) return;
   confirmEmbarkAndDeploy(mission);
 }
-const ARENA_UNLOCK_THRESHOLD = 6;
+const ARENA_UNLOCK_THRESHOLD = 4; // v2.3.6 (Randall, 2026-10-28): 6 -> 4 recruits ever reaching Lv3. At 6 the Arena opened around mission 41, and a player who kept fielding the same three often never got there.
 function arenaUnlockReady(){
   const count = G.maxVeteransEverAchieved||0;
   return {count, threshold:ARENA_UNLOCK_THRESHOLD, ready: count >= ARENA_UNLOCK_THRESHOLD};
@@ -3468,9 +3518,12 @@ function processDarkness(win){
 }
 const MAX_VETERAN_LEVEL = 3;
 // Cumulative missionsSurvived required to reach veteranLevel 1/2/3 — gaps of 2, then
-// +3, then +4, so each level-up takes longer than the last and the final
+// +4, then +6, so each level-up takes longer than the last and the final
 // specialization unlock (the biggest reward) is the most earned.
-const LEVEL_THRESHOLDS = [2, 5, 9];
+// v2.3.6 (Randall, 2026-10-28): was [2, 5, 9] (gaps 2/3/4). Slower Lv2 and Lv3 stretch
+// the time before a squad maxes out: first Lv3 around mission 13 instead of 9-10, and
+// board missions reach T4 around mission 15 instead of 11.
+const LEVEL_THRESHOLDS = [2, 6, 12];
 // Retirement (v2.0.10): one-way. A max-level veteran can retire out of the active
 // roster (stops costing recruitFee/upkeep entirely) either as a plain departure or as
 // a Trainer. Only the MOST RECENTLY retired trainer's effect is active -- retiring a
@@ -3505,7 +3558,7 @@ function confirmNewCampaign(){
 function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
 function missionsToNextLevel(r){
   if(r.veteranLevel>=MAX_VETERAN_LEVEL) return null;
-  return effectiveLevelThreshold(r.veteranLevel) - r.missionsSurvived;
+  return effectiveLevelThreshold(r.veteranLevel) - trainingCount(r);
 }
 // Placeholder portrait renderer. `key` is a stable identifier (patron key, enemy
 // baseType, or boss name) meant to double as a future lookup into a real art map
@@ -3581,7 +3634,7 @@ function genRecruit(bonus){
   const gender = Math.random()<0.5 ? 'male' : 'female';
   const r={
     id:uid(), name:choice(gender==='male'?NAMES_MALE:NAMES_FEMALE), gender, bg, trait, weaponKey,
-    side:'player', alive:true, tier:bonus, missionsSurvived:0, veteranLevel:0,
+    side:'player', alive:true, tier:bonus, missionsSurvived:0, trainingMissions:0, veteranLevel:0,
     canHeal: abilities.canHeal, canCast: abilities.canCast, pendingChoice:false,
     chosenAbilityKey:null, pendingAbilityChoice:false,
     eliteKills:0, itemsFound:0,
@@ -3711,10 +3764,51 @@ function companyPowerTier(){
 // reads the same numbers -- the harness kept a stale [2,2,8,3] after v2.1.5 dropped T3
 // to 5 here, which is what led to the T3 boss being tuned down to 0.10x).
 const BOSSHUNT_ENEMY_COUNT = [2,2,5,3];
-function genMission(){
+// Mixed board (v2.3.7, Randall 2026-10-29): one mission a tier below the company, one at
+// it, one a tier above (clamped to 1-4), so a squad of trainees has a fight that fits
+// instead of every mission tracking the two strongest recruits. `slot` is the offset; a
+// taken or replaced mission is regenerated in the same slot.
+const BOARD_TIER_OFFSETS = [-1, 0, 1];
+// A recruit only gains level progress from a mission at least one tier above their level
+// (Lv0 any, Lv1 T2+, Lv2 T3+), so strong recruits can't level on easy fights.
+const UNDER_TIER_NO_TRAINING = true;
+// v2.4.0 late-game ramp (Randall, 2026-10-30).
+// The Darkness Deepens: indexed by darknessTier() (standing 0-3). Only Tier 4 board
+// missions of a company that fights at Tier 4 are Darkened; the Harder slot is one deeper.
+const DARKENED_DEPTH_BY_STANDING = [0, 0, 1, 2];
+const DARKENED_GEAR_MULT = 2; // the Darkened Harder mission's gear-drop chance
+// Weariness: Lv3 veterans only; -1 ATK/DEF per consecutive mission past WEARY_FREE_MISSIONS.
+const WEARY_ENABLED = true;
+const WEARY_MIN_LEVEL = 3, WEARY_FREE_MISSIONS = 3, WEARY_MAX = 3;
+function wearyPenalty(r){ // what the NEXT mission would cost this recruit
+  if(!WEARY_ENABLED || !r || (r.veteranLevel||0) < WEARY_MIN_LEVEL) return 0;
+  return Math.min(WEARY_MAX, Math.max(0, (r.consecutiveDeployments||0) - WEARY_FREE_MISSIONS + 1));
+}
+function darkenedDepthFor(tier, slot){
+  if(tier!==4 || companyPowerTier()!==4) return 0;
+  const d = DARKENED_DEPTH_BY_STANDING[darknessTier()] || 0;
+  if(d<=0) return 0;
+  return d + ((slot||0) > 0 ? 1 : 0);
+}
+function depthTierOf(m){ return (m && m.tier || 1) + (m && m.darkDepth || 0); } // v2.3.8 (Randall, 2026-10-30): switched on
+function trainingCount(r){ return r.trainingMissions!==undefined ? r.trainingMissions : r.missionsSurvived; }
+function missionTrains(r, mission){
+  if(!UNDER_TIER_NO_TRAINING || !mission || mission.type==='exhibition') return true;
+  return (mission.tier||1) >= r.veteranLevel + 1;
+}
+function refreshBoardTiers(){
+  if(!G || !G.missions || !G.roster) return;
+  const ct = companyPowerTier();
+  G.missions.forEach((m,i)=>{
+    if(m.slot===undefined) return;
+    const want = Math.min(4, Math.max(1, ct + m.slot));
+    if(m.tier!==want || (m.darkDepth||0)!==darkenedDepthFor(want, m.slot)) G.missions[i] = genMission(m.slot); // v2.4.0: depth too
+  });
+}
+function genMission(slot){
   const type = choice(MISSION_TYPES);
   const setting = choice(Object.keys(MISSION_SETTINGS));
-  const tier = companyPowerTier();
+  const tier = Math.min(4, Math.max(1, companyPowerTier() + (slot||0)));
   // T4 spawn-count mirrors T3 (v2.0.57 -- diagnostic finding: enemyCount/spawnWave
   // cadence at T4 was only ever 1 enemy higher than T3, but T4's archetype pool
   // (see enemyPool() below) is the first tier that can draw genuine T4-caliber
@@ -3759,7 +3853,7 @@ function genMission(){
       'Sacred ground, defiled. Plant your banner and hold until the site is cleansed.'
     ]
   };
-  return {id:uid(), type, tier, setting, name:missionName(type), enemyCount, reward, rounds, desc:choice(descMap[type])};
+  return {id:uid(), type, tier, setting, name:missionName(type), enemyCount, reward, rounds, desc:choice(descMap[type]), slot:slot||0, darkDepth:darkenedDepthFor(tier, slot)};
 }
 
 function genCapstoneMission(){
@@ -3931,6 +4025,9 @@ function savedGameInfo(){
 function normalizeLoadedGame(){
   if(!(G.expandedTags instanceof Set)) G.expandedTags = new Set();
   if(!G.patronPage) G.patronPage = 'town';
+  // v2.3.7: boards saved before the mixed board have no slots; give them one per position so
+  // replacements fill in the below / at / above spread.
+  (G.missions||[]).forEach((m,i)=>{ if(m.slot===undefined) m.slot = BOARD_TIER_OFFSETS[i]!==undefined ? BOARD_TIER_OFFSETS[i] : 0; });
   if(!SAVE_SCREENS[G.screen]) G.screen = 'patron';
   if(G.screen==='deploy' && (!G.deploy || !G.activeMission)) G.screen = 'patron';
   if(G.screen==='patron'){ G.deploy = null; G.battle = null; G.result = null; G.activeMission = null; }
@@ -4133,7 +4230,7 @@ function chooseArchetype(key){
     patronPage: 'town', expandedTags: new Set()
   };
   for(let i=0;i<3+(arch.poolBonus||0);i++) G.candidates.push(genRecruit(candidateBonus()));
-  for(let i=0;i<3;i++) G.missions.push(genMission());
+  BOARD_TIER_OFFSETS.forEach(o=>G.missions.push(genMission(o)));
   addLog(`You take up the mantle of a ${arch.name}. ${arch.flavor} The Beacon burns low — spend wisely to raise your first company.`,'info');
   render();
 }
@@ -4203,7 +4300,7 @@ function advanceDayAction(){
   // wounds mend"). It used to only charge upkeep and tick the tithe and Darkness, so a
   // fully benched roster could never recover by waiting.
   const restedNames=[], recoveredNames=[];
-  G.roster.forEach(r=>restRecruit(r, restedNames, recoveredNames));
+  G.roster.forEach(r=>{ restRecruit(r, restedNames, recoveredNames); r.consecutiveDeployments = 0; }); // v2.4.0: a day off clears Weariness
   if(restedNames.length) addLog(`While the company rested, ${restedNames.join(', ')} recovered from their wounds.`,'info');
   if(recoveredNames.length) addLog(`${recoveredNames.join(', ')} ${recoveredNames.length===1?'is':'are'} fit for duty again.`,'good');
   processTithe();
@@ -4439,7 +4536,7 @@ function replaceRandomMission(){
   G.gold-=cost;
   const idx = rand(0, G.missions.length-1);
   const old = G.missions[idx];
-  G.missions[idx] = genMission();
+  G.missions[idx] = genMission(old.slot||0);
   addLog(`Paid ${cost} gold to have "${old.name}" struck from the board -- something else has taken its place.`,'info');
   render();
 }
@@ -4486,8 +4583,8 @@ function embark(missionId){
   const mission=G.missions.find(m=>m.id===missionId);
   if(G.squadSelect.length<3 && !G.confirmIncompleteSquad){ G.confirmIncompleteSquad=true; render(); return; }
   G.confirmIncompleteSquad = false;
-  G.missions=G.missions.filter(m=>m.id!==missionId);
-  G.missions.push(genMission());
+  const slotIdx = G.missions.findIndex(m=>m.id===missionId);
+  G.missions[slotIdx] = genMission(mission.slot||0); // same slot, regenerated at today's company tier
   G.activeMission=mission;
   startDeployment(mission);
 }
@@ -4952,9 +5049,9 @@ const MISSION_TARGET_MIN_DIST = 5;
   for(let i=0;i<mission.enemyCount;i++){
     const {x,y} = placePointFarFromSpawn(obstacles, [...enemies, ...objectives], spawnZone, ENEMY_SPAWN_MIN_DIST);
     const t=choice(pool);
-    const depthMult = tierDepthMult(mission.tier);
+    const depthMult = tierDepthMult(depthTierOf(mission)); // v2.4.0: Darkened missions scale deeper
     const e={id:uid(), name:t.name, glyph:t.glyph, side:'enemy', alive:true,
-      hp:Math.round(t.hp*depthMult),maxhp:Math.round(t.hp*depthMult),atk:Math.round(t.atk*depthMult),def:t.def+tierDepthDefBonus(mission.tier),init:t.init,move:t.move,range:t.range,x,y,
+      hp:Math.round(t.hp*depthMult),maxhp:Math.round(t.hp*depthMult),atk:Math.round(t.atk*depthMult),def:t.def+tierDepthDefBonus(depthTierOf(mission)),init:t.init,move:t.move,range:t.range,x,y,
       tier:t.tier, baseType:t.name, abilityCooldowns:{}};
     applyMutations(e);
     assignEnemyLabel(e, enemies);
@@ -5091,6 +5188,13 @@ function beginBattle(){
   squadUnits.forEach(u=>{
     if(u.bondBonusApplied){ u.atk -= u.bondBonusApplied.atk; u.def -= u.bondBonusApplied.def; } // defensive cleanup, mirrors pendingRevert above
     u.bondBonusApplied = {atk:0, def:0};
+  });
+  // v2.4.0 Weariness: battle-only, reverted at the top of endBattle like the bond bonus.
+  squadUnits.forEach(u=>{
+    if(u.wearyApplied){ u.atk += u.wearyApplied; u.def += u.wearyApplied; } // defensive cleanup
+    const w = wearyPenalty(u);
+    u.wearyApplied = w;
+    if(w){ u.atk -= w; u.def -= w; }
   });
   const bondedPairsThisBattle = [];
   for(let i=0;i<squadUnits.length;i++){
@@ -5403,9 +5507,9 @@ function spawnWave(overrideCount){
     while((tileOccupied(x,y)||G.battle.obstacles.has(x+','+y)) && tries<30);
     if(tries>=30) continue;
     const t=choice(pool);
-    const depthMult = tierDepthMult(tier);
+    const depthMult = tierDepthMult(depthTierOf(G.activeMission)); // v2.4.0
     const e={id:uid(),name:t.name,glyph:t.glyph,side:'enemy',alive:true,
-      hp:Math.round(t.hp*depthMult),maxhp:Math.round(t.hp*depthMult),atk:Math.round(t.atk*depthMult),def:t.def+tierDepthDefBonus(tier),init:t.init,move:t.move,range:t.range,x,y,
+      hp:Math.round(t.hp*depthMult),maxhp:Math.round(t.hp*depthMult),atk:Math.round(t.atk*depthMult),def:t.def+tierDepthDefBonus(depthTierOf(G.activeMission)),init:t.init,move:t.move,range:t.range,x,y,
       tier:t.tier, baseType:t.name, abilityCooldowns:{}};
     applyMutations(e);
     e.base = {atk:e.atk, def:e.def, init:e.init, move:e.move}; // v2.1.2 -- see beginBattle()'s snapshot comment; wave spawns happen after that snapshot runs, so need their own
@@ -7408,6 +7512,7 @@ function endBattle(win){
   // function touches atk/def, so it never leaks into permanently-displayed stats.
   squad.forEach(r=>{
     if(r.bondBonusApplied){ r.atk -= r.bondBonusApplied.atk; r.def -= r.bondBonusApplied.def; r.bondBonusApplied = null; }
+    if(r.wearyApplied){ r.atk += r.wearyApplied; r.def += r.wearyApplied; r.wearyApplied = 0; } // v2.4.0
   });
   // Bug fix (v2.0.33) safety net: pendingRevert/pendingCasterRevert entries (Elder's
   // Wrath and every other buff/debuff) are now cleared on the caster's death and tick
@@ -7481,7 +7586,7 @@ function endBattle(win){
   G.roster.forEach(r=>{
     if(!G.deploy.squadIds.includes(r.id)){
       restRecruit(r, restedNames, recoveredNames); // v2.3.5: shared with Wait a Day
-      r.consecutiveDeployments = 0; // sat out this expedition -- streak broken
+      if(G.activeMission.type!=='exhibition') r.consecutiveDeployments = 0; // sat out this expedition -- streak broken (v2.4.0: an Exhibition Match isn't a day off)
     }
   });
   if(restedNames.length) addLog(`While the company was away, ${restedNames.join(', ')} recovered from their wounds.`,'info');
@@ -7496,6 +7601,7 @@ function endBattle(win){
       r.flawlessMissions = (r.flawlessMissions||0) + 1;
     }
   });
+  const untrainedNames = []; // v2.3.7: survived an under-tier mission, no level progress
   survivors.forEach(r=>{
     // Exhibition matches (v2.1.3+) guarantee survival by design (no permadeath) --
     // if they used the normal unconditional survivor credit, winning wouldn't matter
@@ -7503,8 +7609,11 @@ function endBattle(win){
     // Requires an actual win here specifically; every other mission type keeps the
     // existing any-survivor-counts behavior unchanged.
     if(G.activeMission.type==='exhibition' && !win) return;
-    r.missionsSurvived++;
-    if(r.veteranLevel < MAX_VETERAN_LEVEL && r.missionsSurvived >= effectiveLevelThreshold(r.veteranLevel)){
+    if(r.trainingMissions===undefined) r.trainingMissions = r.missionsSurvived; // recruits from before v2.3.7
+    r.missionsSurvived++; // the full record (Hall of Fame)
+    if(r.veteranLevel < MAX_VETERAN_LEVEL && !missionTrains(r, G.activeMission)){ untrainedNames.push(r.name); return; }
+    r.trainingMissions++;
+    if(r.veteranLevel < MAX_VETERAN_LEVEL && r.trainingMissions >= effectiveLevelThreshold(r.veteranLevel)){
       r.veteranLevel++;
       const hpGain = rollLevelHp(r);
       r.maxhp += hpGain; r.hp = Math.min(r.maxhp, r.hp+hpGain);
@@ -7525,6 +7634,7 @@ function endBattle(win){
       }
     }
   });
+  if(untrainedNames.length) addLog(`${untrainedNames.join(', ')} learned nothing new -- the mission was below their level.`,'info');
   survivors.forEach(r=>checkNicknameUnlock(r)); // after every other counter this mission touches
   let foundItems=[];
   if(win){
@@ -7658,6 +7768,7 @@ function returnToPatron(page){
   // return to the town instead of Company Hall. Training choices are still resolved on
   // the result screen before this runs, and Company Hall is one tap away.
   G.patronPage = page || 'town';
+  refreshBoardTiers(); // v2.3.7: re-post board missions if the company tier moved
   render();
 }
 // Cancelling a deployed-but-not-yet-fought expedition does NOT advance a day -- no
@@ -7896,10 +8007,12 @@ function renderHelp(){
       <p>Your active roster has a capacity (shown as Barracks X/Y in Company Hall). Once full, you can't hire further until you expand it or free up a slot.</p>
 
       <h3 style="margin-top:16px">Squad Selection</h3>
-      <p>From Company Hall, select up to 3 recruits for your next expedition. Recruits who survive missions gain experience toward veteran levels, unlocking stronger stats and eventually a specialization choice.</p>
+      <p>From Company Hall, select up to 3 recruits for your next expedition. Recruits who survive missions gain experience toward veteran levels (only from missions at least one tier above their level: Lv1 needs Tier 2+, Lv2 needs Tier 3+; Exhibition Matches always count), unlocking stronger stats and eventually a specialization choice.</p>
       <p>Recruits who fight enough missions together form a Bond, giving both a small stat bonus whenever they're deployed together again.</p>
 
       <h3 style="margin-top:16px">Healing, Wounds &amp; Injuries</h3>
+      <p><b>The Darkness deepens</b> — once your company fights at Tier 4, rising standing draws the Darkness's attention: Tier 4 board missions become <b>Darkened</b>, with tougher enemies, and the harder mission is darker still (with a better chance of gear). Easier missions are never Darkened.</p>
+      <p><b>Weariness</b> — a Lv3 veteran sent on more than three missions in a row grows weary: −1 ATK and −1 DEF per extra mission (up to −3), for that battle only. Sitting out a single mission, or a Wait a Day, clears it. A deeper bench of veterans lets you rotate.</p>
       <p><b>Injured</b> — if a recruit survives a mission at 25% max HP or below, or would have died outright but is narrowly pulled back from the brink (a flat 75% chance to survive instead of falling), they come back Injured: benched for 2-4 expeditions, no stat penalty, just unavailable for deployment (including Exhibition Matches) until they've recovered. Each expedition sat out, or day spent with Wait a Day, counts toward the recovery and heals HP as normal. A deep enough roster to rotate injured recruits out is the main way to manage this.</p>
 
       <h3 style="margin-top:16px">Choosing a Mission</h3>
@@ -8183,7 +8296,7 @@ function buildTempleHtml(){
       <h2 style="color:var(--ember)">${ic('page_temple','☩',24)} ${nextDef.name}</h2>
       <p><small class="hint">${nextDef.desc}</small></p>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <span class="tag">Step ${nextStep}/${TEMPLE_CHAIN.length} — Reward: ${120+nextDef.tier*30}g</span>
+        <span class="tag">Step ${nextStep}/${TEMPLE_CHAIN.length} — Reward: ${120+(nextDef.rewardTier||nextDef.tier)*30}g</span>
         ${embarkButtonHtml('embarkTempleMission()', 'Embark')}
       </div>
     </div>`;
@@ -8231,7 +8344,7 @@ function buildArenaHtml(){
     if(!regionOpen('arena')) return `
     <div class="card">
       <h2>The Arena</h2>
-      <small class="hint">A tournament that never learned how to end. Veterans trained to mastery: ${arenaUnlockReady().count}/${ARENA_UNLOCK_THRESHOLD}.</small>
+      <small class="hint">A tournament that never learned how to end. Recruits who've reached Lv3: ${arenaUnlockReady().count}/${ARENA_UNLOCK_THRESHOLD}. Everyone who ever has counts, so rotate newer recruits in to train more.</small>
     </div>`;
     if(G.arenaReclaimed){
       const retrainable = G.roster.filter(retrainEligible);
@@ -8271,9 +8384,9 @@ function buildArenaHtml(){
       return `
     <div class="card">
       <h2>The Arena</h2>
-      <small class="hint">A tournament that never learned how to end. Only a company that's proven it can keep producing champions will be let into the ring.</small>
+      <small class="hint">A tournament that never learned how to end. Only a company that's proven it can keep producing champions will be let into the ring. Every recruit who has ever reached Lv3 counts, so rotate newer recruits in to train more.</small>
       <div style="margin-top:8px">
-        <span class="tag">○ Veterans trained to mastery: ${aru.count}/${aru.threshold}</span>
+        <span class="tag">○ Recruits who've reached Lv3: ${aru.count}/${aru.threshold}</span>
       </div>
     </div>`;
     }
@@ -8284,7 +8397,7 @@ function buildArenaHtml(){
       <h2 style="color:var(--ember)">${ic('page_arena','🗡',24)} ${nextDef2.name}</h2>
       <p><small class="hint">${nextDef2.desc}</small></p>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <span class="tag">Step ${nextStep2}/${ARENA_CHAIN.length} — Reward: ${120+nextDef2.tier*30}g</span>
+        <span class="tag">Step ${nextStep2}/${ARENA_CHAIN.length} — Reward: ${120+(nextDef2.rewardTier||nextDef2.tier)*30}g</span>
         ${embarkButtonHtml('embarkArenaMission()', 'Embark')}
       </div>
     </div>${buildExhibitionHtml()}`;
@@ -8344,6 +8457,7 @@ function renderCompanyHallPage(){
     if(r.canCast) parts.push(tappableTag(`r${r.id}-cast`, ic('action_cast','✦',12)+' Caster', `Can spend an action to channel a ranged, armor-piercing bolt instead of a normal attack. Bolt power ${3+(r.veteranLevel||0)*2} (3 + veteran level×2), then minus half the target's DEF, ±1-2 variance, minimum 1. Ignores half armor.`, 'color:var(--corrupt);border-color:var(--corrupt)', 'max-height:180px'));
     if(r.equipment&&r.equipment.hand) parts.push(tappableTag(`r${r.id}-hand`, ic('tag_ring','💍',12)+' '+r.equipment.hand.name, r.equipment.hand.flavor+(formatTraitMods(r.equipment.hand)?' <b style="color:var(--ember)">('+formatTraitMods(r.equipment.hand)+')</b>':''), 'color:var(--ember);border-color:var(--ember-dim)'));
     if(r.equipment&&r.equipment.head) parts.push(tappableTag(`r${r.id}-head`, ic('tag_crown','👑',12)+' '+r.equipment.head.name, r.equipment.head.flavor+(formatTraitMods(r.equipment.head)?' <b style="color:var(--ember)">('+formatTraitMods(r.equipment.head)+')</b>':''), 'color:var(--ember);border-color:var(--ember-dim)'));
+    if(wearyPenalty(r)>0) parts.push(tappableTag(`r${r.id}-weary`, `☾ Weary −${wearyPenalty(r)} · rest 1 mission`, `${r.consecutiveDeployments} missions in a row. Next mission: −${wearyPenalty(r)} ATK and −${wearyPenalty(r)} DEF for that battle. Sitting out one mission, or a Wait a Day, clears it. Only Lv3 veterans grow weary.`, 'color:var(--ember);border-color:var(--ember)'));
     if(r.injuryBenchRemaining>0) parts.push(tappableTag(`r${r.id}-injured`, `${ic('tag_injured','🩹',12)} Injured (${r.injuryBenchRemaining} left)`, `Benched -- can't be deployed (including Exhibition Matches) for ${r.injuryBenchRemaining} more expedition${r.injuryBenchRemaining===1?'':'s'}. No stat penalty, just needs the rest. Ticks down by ${benchRecoveryPerRest()} each expedition sat out or day waited.`, 'color:var(--blood);border-color:var(--blood)'));
     const bondedIds = Object.keys(r.missionsWith||{}).filter(id=>(r.missionsWith[id]||0)>=BOND_MISSIONS_THRESHOLD && G.roster.find(x=>x.id===Number(id)));
     bondedIds.forEach(otherId=>{
@@ -8387,7 +8501,7 @@ function renderCompanyHallPage(){
     ${companyLedgerHtml()}
     <div class="card">
       <h2>Company Hall</h2>
-      <small class="hint">Your standing company. Select up to 3 for the next expedition, manage equipment, or dismiss a recruit. Survivors grow stronger at 2, 5, and 9 missions survived.</small>
+      <small class="hint">Your standing company. Select up to 3 for the next expedition, manage equipment, or dismiss a recruit. Survivors grow stronger at ${LEVEL_THRESHOLDS[0]}, ${LEVEL_THRESHOLDS[1]}, and ${LEVEL_THRESHOLDS[2]} missions survived.</small>
       ${trainerChip ? `<p style="margin-top:8px">${trainerChip.tagHtml}</p>${trainerChip.panelHtml}` : ''}
       <div class="rostergrid" style="margin-top:10px">
         ${rosterRows || '<small class="hint">Your roster is empty. Visit the Recruitment Office.</small>'}
@@ -8433,17 +8547,25 @@ function renderRecruitmentOfficePage(){
     </div>`;
 }
 function renderExpeditionBoardPage(){
-  const missionRows = G.missions.map(m=>`
-    <div class="missioncard">
-      <span class="mname">${m.name}</span> <span class="tag">${TYPE_LABELS[m.type]}</span> <span class="tag">Tier ${m.tier}</span> <span class="tag">${MISSION_SETTINGS[m.setting].name}</span>
-      <small class="mdesc">${m.desc}</small>
+  refreshBoardTiers(); // also catches tier changes from dismissing or retiring recruits
+  const ct = companyPowerTier();
+  const missionRows = G.missions.slice().sort((a,b)=>a.tier-b.tier).map(m=>{
+    const rel = m.tier<ct ? {label:'Easier', cls:'easier'} : ((m.tier>ct || ((m.slot||0)>0 && m.darkDepth>0)) ? {label:'Harder', cls:'harder'} : {label:'Standard', cls:'standard'}); // v2.4.0: the deeper Darkened slot is the harder one
+    const noTrainFrom = m.tier; // Lv(m.tier)+ recruits gain no level progress here
+    const affected = G.roster.some(r=>r.alive && r.veteranLevel>=noTrainFrom && r.veteranLevel<MAX_VETERAN_LEVEL); // only say it when someone on the roster would miss out
+    const trainNote = (UNDER_TIER_NO_TRAINING && affected) ? `<small class="hint trainnote">Lv${noTrainFrom}+ recruits gain no experience here.</small>` : '';
+    return `
+    <div class="missioncard ${rel.cls}">
+      <span class="mname">${m.name}</span> <span class="tag tierrel ${rel.cls}">${rel.label} · Tier ${m.tier}</span>${m.darkDepth ? ` <span class="tag darkened">◆ Darkened +${m.darkDepth}</span>` : ''} <span class="tag">${TYPE_LABELS[m.type]}</span> <span class="tag">${MISSION_SETTINGS[m.setting].name}</span>
+      <small class="mdesc">${m.desc}</small>${trainNote}${m.darkDepth ? `<small class="hint trainnote">Enemies are ${Math.round((tierDepthMult(4+m.darkDepth)-1)*100)}% tougher with +${tierDepthDefBonus(4+m.darkDepth)} DEF.${(m.slot||0)>0 ? ' Double chance of finding gear.' : ''}</small>` : ''}
       <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center">
         <span class="tag">Reward: ${m.reward.gold}g</span>
         ${embarkButtonHtml(`embark(${m.id})`, 'Embark')}
       </div>
-    </div>`).join('');
+    </div>`;}).join('');
   return `
     <div class="boardsection-label"><span>Available Expeditions</span></div>
+    <small class="hint" style="display:block;margin-bottom:8px">Your company fights at Tier ${ct}, set by your two highest-level recruits. The board always offers one easier and one harder mission where it can.${(ct===4 && (DARKENED_DEPTH_BY_STANDING[darknessTier()]||0)>0) ? ` <b class="darkened-text">The Darkness deepens</b> with your standing (${tierName(darknessTier())}): Tier 4 missions are Darkened +${DARKENED_DEPTH_BY_STANDING[darknessTier()]}, the harder one +${DARKENED_DEPTH_BY_STANDING[darknessTier()]+1}.` : ''}</small>
     <p style="margin-bottom:10px">
       <button onclick="replaceRandomMission()" ${G.gold<replaceMissionCost()||!G.missions.length?'disabled':''}>Replace a Mission (${replaceMissionCost()}g)</button>
     </p>
@@ -8461,7 +8583,7 @@ function renderTerritoriesPage(){
      activeText: (G.templeChainStep||0)<TEMPLE_CHAIN.length ? `Step ${(G.templeChainStep||0)+1}/${TEMPLE_CHAIN.length} — ${(TEMPLE_CHAIN.find(c=>c.step===(G.templeChainStep||0)+1)||{}).name||''}` : '',
      bossText:'The Endless Rite awaits', reclaimedText:'Infirmary available'},
     {key:'arena', icon:ic('page_arena','🗡',48), name:'The Arena', status:territoryStatus(G.arenaReclaimed, G.arenaChainStep, ARENA_CHAIN.length, arenaUnlockReady),
-     lockedText:`A tournament that never learned how to end.`, progressText:`○ Veterans trained to mastery: ${aru.count}/${aru.threshold}`,
+     lockedText:`A tournament that never learned how to end.`, progressText:`○ Recruits who've reached Lv3: ${aru.count}/${aru.threshold}`,
      activeText: (G.arenaChainStep||0)<ARENA_CHAIN.length ? `Step ${(G.arenaChainStep||0)+1}/${ARENA_CHAIN.length} — ${(ARENA_CHAIN.find(c=>c.step===(G.arenaChainStep||0)+1)||{}).name||''}` : '',
      bossText:'The Endless Bout awaits', reclaimedText:'Retraining available'}
   ];

@@ -20,6 +20,229 @@ _Nothing staged yet._
 
 ---
 
+## [v2.4.0] — The Darkness Deepens & Weariness (Significant: new system)
+
+A late-game ramp for companies that have maxed out, and a reason to keep
+training new veterans.
+
+### Added
+- **The Darkness Deepens.** Once the company fights at Tier 4, the Darkness
+  standing (from paid tithes) Darkens Tier 4 board missions: **+1 at standing 2**
+  (about mission 24), **+2 at standing 3** (about mission 39). Each step scales
+  enemies like one tier deeper (about +15% HP/ATK and +1 DEF, the same scaling
+  region fights use above Tier 4). The **Harder** slot at Tier 4, which used to
+  repeat a Standard mission, is now one step deeper and **doubles the gear-drop
+  chance**. Easier missions are never Darkened. Cards show "◆ Darkened +N" and
+  what it means; a line above the board names the standing that caused it.
+  Board missions re-post when the standing changes.
+- **Weariness.** A Lv3 veteran sent on more than three missions in a row takes
+  **−1 ATK and −1 DEF per extra mission (up to −3), for that battle only.**
+  Sitting out one mission, or a Wait a Day, clears it. Region fights count.
+  Company Hall shows "☾ Weary −N · rest 1 mission". Only Lv3 veterans are
+  affected.
+- How to Play explains both.
+
+### Changed
+- An Exhibition Match no longer resets the rest of the roster's deployment
+  streak (no day passes, so it isn't a day off).
+
+### Simulated effect (48 campaigns per row, campaign win rate)
+| Rotation style | Player | v2.3.9 | v2.4.0 |
+| --- | --- | --- | --- |
+| 2 veterans + 1 trainee | Solid | 96% | 77% |
+| 2 veterans + 1 trainee | Average | 62% | 29% |
+| 1 veteran + 2 trainees | Solid | 100% | 96% |
+| 1 veteran + 2 trainees | Average | 73% | 81% |
+
+Leaning on the same veterans now costs a lot; training more recruits costs
+almost nothing (the 73% → 81% rise is within the noise). The ramp alone,
+without Weariness, already took average veteran-heavy companies to 25%; a
+gentler schedule (+1 at standing 3 only) was also tested (83% / 48% for the
+veteran-heavy style).
+
+### Verified
+- Seeded harness run unchanged: `480 9774c63e5a53313e6300314b94894ac54c9097d5 230`
+  (harness squads have no streaks and harness missions aren't Darkened).
+- The shipped game logic matches the simulated variant except for the Harder
+  label on the deeper Darkened card (display only).
+- Browser: Darkened depths and labels at standing 2 (T3 / T4+1 / Harder T4+2),
+  enemy DEF raised in the Darkened mission, Weary −3/−1 applied in battle and
+  fully reverted after, streaks cleared by Wait a Day, Weary tags in Company
+  Hall; smoke, save and settings tests pass; no console errors.
+
+---
+
+## [v2.3.9] — Region Retune: Harder Bosses, Shorter Arena (Minor)
+
+Chosen from four options run through region harness trials and full campaign
+simulations (48 campaigns per row). See "Simulated effect" below.
+
+### Changed
+- **The Endless Rite is tougher:** enemy tier 6 → 7.
+- **The Endless Bout is tougher:** enemy tier 6 → 8.
+- **Arena steps have fewer waves:** 4/5/6/7 → 3/4/4/5. Each step is shorter,
+  and the chain takes about 13% less play.
+- The eight chain steps are otherwise unchanged. Payouts are unchanged too:
+  chain steps now carry a `rewardTier`, so a future tier change doesn't move
+  the gold. The Rite and Bout still pay 400.
+
+### Why not harder everywhere
+A player must clear all 10 region fights, retrying losses, before the Darkness
+limit. Making every step harder compounds: in simulation, a version tuned so
+each step was about 80% for a solid player cut average-player campaign wins
+from 75% to 6%. Concentrating the difficulty on the two boss fights keeps the
+climax hard without that compounding.
+
+### Simulated effect (campaigns, median)
+| Player | Campaign wins (v2.3.8 → v2.3.9) | Endless Rite wins | Endless Bout wins | Arena unit-turns per campaign |
+| --- | --- | --- | --- | --- |
+| Solid (+4) | 98% → 96% | 89% → 79% | 96% → 87% | 203 → 177 |
+| Average (+2) | 75% → 62% | 78% → 66% | 94% → 73% | 227 → 209 |
+
+### Harness (fresh Lv3 squads, win %, 150 trials)
+| Fight | +0 (harness AI) | +2 | +4 |
+| --- | --- | --- | --- |
+| Endless Rite | 42 → 22 | 64 → 55 | 85 → 77 |
+| Endless Bout | 43 → 9 | 83 → 37 | 98 → 82 |
+| Arena step 4 | 47 → 57 | 92 → 91 | 98 → 97 |
+
+Arena steps 1–3 got slightly easier at +0 (fewer waves); the bosses carry the
+difficulty. Fresh harness squads have no items or bonds, so they do worse on
+the bosses than campaign squads. Bot stalls (the known AI-turn stall) rise in
+the boss fights and count as losses here.
+
+### Verified
+- Seeded harness run: `480 9774c63e5a53313e6300314b94894ac54c9097d5 230` (new
+  baseline; the region trials in it changed as intended).
+- The shipped game logic matches the simulated "climax" variant exactly.
+- Browser: tiers, wave counts and Arena step payouts read correctly; region
+  unlock test and smoke battles pass; no console errors.
+
+---
+
+## [v2.3.8] — Under-Tier Training Rule On (Minor)
+
+### Changed
+- **`UNDER_TIER_NO_TRAINING` is on.** A recruit only gains level progress from a
+  mission at least one tier above their level: Lv0 from any tier, Lv1 from
+  Tier 2+, Lv2 from Tier 3+. Lv3 recruits are maxed, so it never affects them.
+  Exhibition Matches are exempt (they're tiered to the recruit). The mission
+  still counts toward `missionsSurvived` (the Hall of Fame record) and pays its
+  gold as usual.
+- Board cards note which recruits would gain nothing ("Lv2+ recruits gain no
+  experience here"), shown only when someone on the roster is affected. The
+  post-mission log names anyone who learned nothing. How to Play explains the
+  rule.
+
+### Simulated effect (48 campaigns per row, mixed board, median)
+| Player | Rule | Win rate | Mission won | First Lv3 |
+| --- | --- | --- | --- | --- |
+| Solid | Off (v2.3.7) | 94% | 41 | 13 |
+| Solid | On | 98% | 40 | 14 |
+| Average | Off (v2.3.7) | 65% | 47 | 14 |
+| Average | On | 75% | 45.5 | 17 |
+
+The win-rate gains are within the noise at this sample size. In the
+simulation the rule mostly slows how fast an average player levels; it
+doesn't make the game harder.
+
+### Verified
+- Seeded harness run unchanged: `480 f2a0ccc4f782873ed48c8c7c3718f7eda4188976 230`.
+- The shipped game logic gives identical campaign results, seed for seed, to the
+  simulated variant.
+- Browser: at company Tier 3, the Tier 2 card notes Lv2+; after that mission
+  two Lv2 recruits gained no training while a Lv0 did, and the log named
+  them. Smoke battles complete; no console errors.
+
+---
+
+## [v2.3.7] — Mixed Expedition Board (Minor)
+
+### Changed
+- **The Expedition Board now offers a spread of tiers.** Its three missions sit
+  one tier below the company tier, at it, and one tier above (clamped to 1–4),
+  labelled **Easier**, **Standard** and **Harder**. At T1 there is no easier
+  tier and at T4 no harder one, so those boards show two Standard missions. The
+  company tier is still set by your two highest-level recruits (`companyPowerTier()`);
+  a line above the board says so. A squad of trainees now always has a fight
+  that fits instead of every mission tracking your strongest two.
+- Missions are listed easiest first. A taken or replaced mission is regenerated
+  in the same slot, and when the company tier moves (a level-up, a death, a
+  retirement) any mission whose slot no longer matches is re-posted at the
+  right tier. That also closes the old loophole where missions posted before a
+  tier-up stayed on the board at the lower tier.
+- Saved campaigns from before this version get their board slots assigned by
+  position when loaded.
+
+### Added (switched off)
+- `UNDER_TIER_NO_TRAINING`: when on, a recruit only gains level progress from a
+  mission at least one tier above their level (Lv0 any, Lv1 T2+, Lv2 T3+);
+  Exhibition Matches are exempt. Board cards then say which recruits would gain
+  nothing, and the result log names them. It ships **off** pending a decision.
+- `r.trainingMissions` now drives levels; `r.missionsSurvived` stays the full
+  record shown in the Hall of Fame. With the switch off the two are equal.
+  Recruits from older saves pick it up from `missionsSurvived`.
+
+### Simulated effect (48 campaigns per row, all six patrons, median)
+| Player | Board | Win rate | Mission won | Board win rate | Deaths per campaign |
+| --- | --- | --- | --- | --- | --- |
+| Solid | Single tier (v2.3.6) | 88% | 43 | 97% | 1 |
+| Solid | Mixed | 94% | 41 | 99% | 1 |
+| Average | Single tier (v2.3.6) | 27% | 50 | 82% | 4.5 |
+| Average | Mixed | 65% | 47 | 96% | 3 |
+
+On the single-tier board, an average player's squads that included a Lv0–1
+recruit won 69% of their T4 missions; on the mixed board the bot never had to
+send them into one. These baselines use the bot's new
+fit-the-squad mission choice, so they differ slightly from the v2.3.6 entry.
+
+### Verified
+- Seeded harness run unchanged: `480 f2a0ccc4f782873ed48c8c7c3718f7eda4188976 230`.
+- Browser: board spread and labels, same-slot replacement, re-tiering after a
+  tier change, old-save slot assignment, smoke battles, save tests; no
+  console errors.
+
+---
+
+## [v2.3.6] — Pacing Step 1 (Minor)
+
+Chosen from campaign simulations: 12 unlock combinations, then 5 level-speed
+options on top of the chosen one, 48 campaigns each (solid player, all six
+patrons).
+
+### Changed
+- **The Temple unlocks after 5 paid tithes** (70 Darkness held back), down from
+  8 (100). It now opens around mission 15 instead of 24.
+- **The Arena unlocks once 4 recruits have ever reached Lv3**, down from 6. It
+  now opens around mission 31 instead of 41. Its locked text reads "Recruits
+  who've reached Lv3: x/4" and explains that everyone who ever reached Lv3
+  counts, so rotating newer recruits in is how you get there.
+- **Veteran levels take longer:** Lv1, Lv2 and Lv3 at 2, 6 and 12 missions
+  survived (was 2, 5 and 9). The Company Hall hint now reads the numbers from
+  `LEVEL_THRESHOLDS`. A retired Trainer still takes one mission off each step.
+
+### Simulated effect (solid player, median)
+| | v2.3.5 | v2.3.6 |
+| --- | --- | --- |
+| Win rate | 77% | 75% |
+| Mission the campaign is won | 48 | 43 |
+| First Lv3 | 9–10 | 13 |
+| Board missions reach T4 | 11 | 15 |
+| Temple opens | 24 | 15 |
+| Arena opens | 41 | 31 |
+| Longest stretch with nothing new | 12 | 7 |
+| Missions to spare before the Darkness limit | 11 | 16 |
+
+### Verified
+- Seeded harness run unchanged: `480 f2a0ccc4f782873ed48c8c7c3718f7eda4188976 230`
+  (no combat changes).
+- The shipped game logic gives identical campaign results, seed for seed, to the
+  variant that was simulated.
+- Browser: version, Company Hall hint, Territories progress text (0/4, 0/70); no
+  console errors; smoke battles complete.
+
+---
+
 ## [v2.3.5] — Pacing-Pass Bug Fixes (Minor)
 
 ### Fixed
