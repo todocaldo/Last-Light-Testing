@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="art/appicon/web/favicon_32.png">
 <link rel="apple-touch-icon" href="art/appicon/web/icon_180.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Last Light v2.4.0</title>
+<title>Last Light v2.4.2</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -29,6 +29,17 @@
   v2.1.16 changelog entry, with the full v2.1.15 entry this build carries
   forward verbatim underneath it.
   ===========================================================================
+
+  LAST LIGHT -- v2.4.2
+  Run log for playtest feedback: a compact record of each mission and a
+  few camp events, saved with the campaign and kept after it ends.
+  Settings > Run log copies or downloads it. Nothing is sent anywhere.
+  No gameplay changes.
+
+  LAST LIGHT -- v2.4.1
+  Weapon frequency and hire cost: the healer/caster backgrounds no longer
+  lean toward Quarterstaff/Dagger (every weapon now rolls about 20%), and
+  hire cost counts Move (+5/point) and range (+4/tile). No combat changes.
 
   LAST LIGHT -- v2.4.0
   Late-game ramp (new system).
@@ -2848,7 +2859,7 @@
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span class="hdr-ver" style="color:var(--ash);font-size:0.55em;letter-spacing:1px">v2.4.0</span></h1>
+      <h1>✦ LAST LIGHT <span class="hdr-ver" style="color:var(--ash);font-size:0.55em;letter-spacing:1px">v2.4.2</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
@@ -2939,7 +2950,11 @@ const BACKGROUNDS=[
 // budget, verified per-row.
 const HEAL_BACKGROUNDS=['Acolyte','Hedge Doctor'];
 const CAST_BACKGROUNDS=['Student','Scribe'];
-const WEAPON_AFFINITY = {'Farmhand':'spear','Laborer':'spear','Militiaman':'spear','Brawler':'longsword','Dockhand':'longsword','Mercenary':'longsword','Fletcher':'longbow','Poacher':'longbow','Huntsman':'longbow','Hermit':'quarterstaff','Hedge Doctor':'dagger','Scribe':'quarterstaff','Acolyte':'quarterstaff','Pickpocket':'dagger','Thug':'quarterstaff','Student':'dagger','Urchin':'dagger','Butcher':'dagger','Trapper':'quarterstaff'};
+// v2.4.1 (Randall, 2026-11-01): the healer/caster backgrounds (Scribe, Acolyte, Hedge
+// Doctor, Student) no longer lean toward a weapon -- all four leaned to Quarterstaff or
+// Dagger, so those rolled 24% each vs 17% for the rest. Three leaning backgrounds per
+// weapon now; each weapon rolls about 20%.
+const WEAPON_AFFINITY = {'Farmhand':'spear','Laborer':'spear','Militiaman':'spear','Brawler':'longsword','Dockhand':'longsword','Mercenary':'longsword','Fletcher':'longbow','Poacher':'longbow','Huntsman':'longbow','Hermit':'quarterstaff','Pickpocket':'dagger','Thug':'quarterstaff','Urchin':'dagger','Butcher':'dagger','Trapper':'quarterstaff'};
 const AFFINITY_PCT = 0.65;   // observed hit rate ends up ~72% due to uniform-fallback overlap — see rollWeapon()
 const RECRUIT_COST_MULT = 0.5;   // global multiplier on recruit hiring cost, for economy balancing
 // Rebalance v2.0.48: was 0.15. Re-solved for the new 19-background pool (Miner
@@ -3547,6 +3562,7 @@ function confirmNewCampaign(){
   if(confirmNewCampaignArmed){
     confirmNewCampaignArmed = false;
     if(btn) btn.textContent = '↺ New Campaign';
+    runLogEnd('abandoned'); // v2.4.2: keep the abandoned campaign's log
     clearSavedGame(); // v2.3.0: confirming abandons the saved campaign
     startNewCampaign();
   } else {
@@ -3657,7 +3673,10 @@ function genRecruit(bonus){
   r.init = 3 + bg.agi + (trait?.mod.init||0) + Math.floor(bonus/2);
   r.move = 3 + w.move + (trait?.mod.move||0);
   r.range = w.range;
-  r.cost = Math.max(10, Math.round(RECRUIT_COST_MULT * (15 + Math.round((r.maxhp-12) + (r.atk-3)*3 + r.def*4 + (r.init-3)*2))));
+  // v2.4.1: movement and range now count toward the price (+5 per Move above 3, +4 per
+  // tile of range above 1), so Longsword/Dagger/Longbow recruits aren't underpriced
+  // against Spear/Quarterstaff, whose value is all in ATK/DEF.
+  r.cost = Math.max(10, Math.round(RECRUIT_COST_MULT * (15 + Math.round((r.maxhp-12) + (r.atk-3)*3 + r.def*4 + (r.init-3)*2 + (r.move-3)*5 + (r.range-1)*4))));
   return r;
 }
 
@@ -4022,7 +4041,75 @@ function savedGameInfo(){
 }
 // Fills fields a newer engine expects but an older save may lack. Keep this growing
 // rather than bumping SAVE_FORMAT, so saves survive updates wherever possible.
+/* ---------------- RUN LOG (v2.4.2) ----------------
+   A compact record of the campaign for playtest feedback: one row per mission and a few
+   camp events. Lives in G.runLog (so it is saved with the campaign); when the campaign
+   ends it is also kept under the store key 'lastRunLog'. Copied or downloaded from
+   Settings > Run log -- nothing is sent anywhere. Short keys keep it small:
+   mission row {t:'m', n:expedition, d:day before, k:kind, tr:tier, dd:Darkened depth,
+   w:won 1/0, r:rounds, sq:squad levels before, wy:Weary total, f:fallen, inj:injured,
+   lv:level-ups, g:gold before reward, dk:Darkness before the day's tick, st:standing,
+   ro:roster size, mv:Lv3 ever, ts/as:Temple/Arena chain step}. */
+const RUN_LOG_FORMAT = 1, RUN_LOG_MAX_EVENTS = 600;
+function runLogStart(){
+  G.runLog = {format:RUN_LOG_FORMAT, version:engineVersion(), patron:G.patron && G.patron.key, started:new Date().toISOString(), events:[]};
+}
+function runLogPush(ev){
+  const L = G && G.runLog; if(!L) return;
+  const v = engineVersion();
+  if(v && v!==L.lastVersion && L.events.length && v!==L.version){ L.events.push({t:'ver', v}); }
+  L.lastVersion = v || L.lastVersion;
+  L.events.push(ev);
+  if(L.events.length > RUN_LOG_MAX_EVENTS) L.events.splice(0, L.events.length - RUN_LOG_MAX_EVENTS);
+}
+function runLogKind(m){
+  if(!m) return '?';
+  if(m.isCapstone) return 'capstone';
+  if(m.isTempleChain) return 'temple'+m.templeStep;
+  if(m.isTempleRite) return 'templeRite';
+  if(m.isArenaChain) return 'arena'+m.arenaStep;
+  if(m.isArenaBout) return 'arenaBout';
+  return m.type;
+}
+function runLogEnd(outcome){
+  const L = G && G.runLog; if(!L || L.ended) return;
+  L.ended = outcome; L.endedDay = G.day; L.finished = new Date().toISOString();
+  L.final = {gold:G.gold, dark:Math.round((G.darknessMeter||0)*10)/10, standing:darknessTier(), roster:(G.roster||[]).length,
+    levels:(G.roster||[]).map(r=>r.veteranLevel), lv3Ever:G.maxVeteransEverAchieved||0, fallen:(G.hallOfFameArchive||[]).length,
+    temple:regionStatus('temple'), arena:regionStatus('arena')};
+  const st = saveStore(); if(st) st.set('lastRunLog', L);
+}
+function runLogText(){
+  const L = (G && G.runLog) || ((saveStore() && saveStore().get('lastRunLog', null)) || null);
+  return L ? JSON.stringify(L) : '';
+}
+function runLogSummary(){
+  const cur = G && G.runLog;
+  const L = cur || ((saveStore() && saveStore().get('lastRunLog', null)) || null);
+  if(!L) return null;
+  const missions = L.events.filter(e=>e.t==='m').length;
+  return {current:!!cur, missions, patron:L.patron, ended:L.ended||null, version:L.version, kb:Math.max(1, Math.round(JSON.stringify(L).length/1024))};
+}
+function copyRunLog(){
+  const text = runLogText(); if(!text) return;
+  const done = ok => { G.runLogNotice = ok ? 'Copied. Paste it into a message or a file and send it over.' : "Couldn't copy here -- use Download instead."; render(); };
+  try{ navigator.clipboard.writeText(text).then(()=>done(true), ()=>done(false)); }catch(e){ done(false); }
+}
+function downloadRunLog(){
+  const text = runLogText(); if(!text) return;
+  try{
+    const blob = new Blob([text], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `last-light-run-${(engineVersion()||'').replace(/[^0-9.]/g,'')}-day${G && G.day || 0}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    G.runLogNotice = 'Downloaded.';
+  }catch(e){ G.runLogNotice = "Couldn't download here -- use Copy instead."; }
+  render();
+}
 function normalizeLoadedGame(){
+  // v2.4.2: campaigns saved before the run log start one now, marked partial
+  if(G.patron && !G.runLog){ runLogStart(); G.runLog.partialFromDay = G.day; }
   if(!(G.expandedTags instanceof Set)) G.expandedTags = new Set();
   if(!G.patronPage) G.patronPage = 'town';
   // v2.3.7: boards saved before the mixed board have no slots; give them one per position so
@@ -4113,6 +4200,7 @@ function openSettings(){
   if(!G) return;
   if(G.screen!=='settings') G.settingsReturn = G.screen;
   G.confirmDeleteSave = false;
+  G.runLogNotice = null; // v2.4.2
   G.screen = 'settings';
   render();
   if(typeof window!=='undefined' && window.scrollTo) window.scrollTo({top:0});
@@ -4167,6 +4255,16 @@ function renderSettings(){
       ${save ? `<p class="setline">Day ${save.day} · ${save.patron} — saved automatically.</p>` : `<p class="setline">No campaign saved.</p>`}
       ${save && fromTitle ? `<button class="${G.confirmDeleteSave?'danger':''}" onclick="deleteSavedCampaign()">${G.confirmDeleteSave?'Delete it? This cannot be undone':'Delete saved campaign'}</button>` : ''}
       ${save && !fromTitle ? `<small class="hint">To start over, use New Campaign at the top of the screen.</small>` : ''}
+      <h3>Run log</h3>
+      ${(()=>{ const s = runLogSummary();
+        if(!s) return `<p class="setline">No campaign recorded yet.</p>`;
+        return `<p class="setline">${s.current ? 'This campaign' : 'Your last finished campaign'}: ${s.missions} mission${s.missions===1?'':'s'}${s.ended ? ' · '+(s.ended==='victory'?'won':'ended ('+s.ended+')') : ''} · about ${s.kb} KB</p>
+      <div class="setrow">
+        <button class="setopt" onclick="copyRunLog()">Copy run log</button>
+        <button class="setopt" onclick="downloadRunLog()">Download</button>
+      </div>`; })()}
+      ${G.runLogNotice ? `<small class="hint" style="display:block;color:var(--good)">${G.runLogNotice}</small>` : ''}
+      <small class="hint">A record of each mission (type, tier, result, squad levels, gold and Darkness) for playtest feedback. Copy or download it and send it over; it stays on this device otherwise.</small>
       <h3>About</h3>
       <p class="setline">Last Light${ver?' '+ver:''}</p>
       <small class="hint">Your campaign and settings are saved in this browser on this device; nothing is sent anywhere. Fonts: IM Fell English and Alegreya Sans, under the SIL Open Font License.</small>
@@ -4232,6 +4330,7 @@ function chooseArchetype(key){
   for(let i=0;i<3+(arch.poolBonus||0);i++) G.candidates.push(genRecruit(candidateBonus()));
   BOARD_TIER_OFFSETS.forEach(o=>G.missions.push(genMission(o)));
   addLog(`You take up the mantle of a ${arch.name}. ${arch.flavor} The Beacon burns low — spend wisely to raise your first company.`,'info');
+  runLogStart(); // v2.4.2
   render();
 }
 
@@ -4294,6 +4393,7 @@ function restRecruit(r, restedNames, recoveredNames){
   }
 }
 function advanceDayAction(){
+  runLogPush({t:'wait', d:G.day, inj:G.roster.filter(r=>r.injuryBenchRemaining>0).length}); // v2.4.2
   chargeUpkeep(1);
   if(G.gameOver){ render(); return; }
   // v2.3.5: waiting now actually rests the company, as its button always said ("lets
@@ -4411,8 +4511,10 @@ function processTithe(){
     G.templeDarknessReduced = (G.templeDarknessReduced||0) + DARKNESS_PER_TITHE;
     checkDarknessTierPromotion();
     addLog(`Paid the city's tithe of ${amount} gold to keep the Beacon fueled.`,'info');
+    runLogPush({t:'tithe', d:G.day, paid:1, amt:amount, st:darknessTier()}); // v2.4.2
   } else {
     addLog(`The company could not meet the city's tithe of ${amount} gold. The Darkness does not wait for empty coffers.`,'bad');
+    runLogPush({t:'tithe', d:G.day, paid:0, amt:amount, gold:G.gold}); // v2.4.2
   }
   G.titheDue = 3;
 }
@@ -4447,6 +4549,7 @@ function fireRecruit(id){
     G.roster=G.roster.filter(x=>x.id!==id);
     G.squadSelect=G.squadSelect.filter(x=>x!==id);
     addLog(`${r.name} retires from active duty and leaves the company.`,'info');
+    runLogPush({t:'dismiss', d:G.day, lvl:r.veteranLevel}); // v2.4.2
     G.confirmDismissId=null;
     checkNoSquadGameOver();
     render();
@@ -4464,6 +4567,7 @@ function retireAsTrainer(id){
   G.retirees = G.retirees || [];
   G.retirees.push(r);
   addLog(`${r.name} retires from the field to train the next generation. (-1 mission to every active recruit's next level threshold)`,'good');
+  runLogPush({t:'trainer', d:G.day}); // v2.4.2
   G.confirmDismissId=null;
   checkNoSquadGameOver();
   render();
@@ -4523,6 +4627,7 @@ function hireRecruit(idx){
   G.roster.push(c);
   G.candidates[idx]=genRecruit(candidateBonus());
   addLog(`Hired ${c.name} the ${c.bg.name} for ${cost} gold.`,'good');
+  runLogPush({t:'hire', d:G.day, wpn:c.weaponKey, cost, heal:c.canHeal?1:0, cast:c.canCast?1:0}); // v2.4.2
   render();
 }
 function refreshCandidatesCost(){ return 10 + darknessTier()*5; } // 10/15/20/25 across tiers 0-3
@@ -5196,6 +5301,7 @@ function beginBattle(){
     u.wearyApplied = w;
     if(w){ u.atk -= w; u.def -= w; }
   });
+  if(G.runLog) G.runLogPending = {lv:Object.fromEntries(squadUnits.map(u=>[u.id, u.veteranLevel])), wy:squadUnits.reduce((s,u)=>s+(u.wearyApplied||0),0), dark:Math.round((G.darknessMeter||0)*10)/10}; // v2.4.2
   const bondedPairsThisBattle = [];
   for(let i=0;i<squadUnits.length;i++){
     for(let j=i+1;j<squadUnits.length;j++){
@@ -7655,6 +7761,17 @@ function endBattle(win){
   }
   G.expedition++;
   G.squadSelect=[];
+  if(G.runLog){ // v2.4.2 run log row
+    const pre = G.runLogPending || {lv:{}, wy:0};
+    const m = G.activeMission;
+    runLogPush({t:'m', n:G.expedition-1, d:G.day, k:runLogKind(m), tr:m.tier, dd:m.darkDepth||0, w:win?1:0,
+      r:(G.battle && G.battle.round)||0, sq:squad.map(r=>pre.lv[r.id]!==undefined ? pre.lv[r.id] : r.veteranLevel), wy:pre.wy||0,
+      f:fallen.length, inj:squad.filter(r=>!fallenIds.includes(r.id) && r.injuryBenchRemaining>0).length,
+      lv:squad.filter(r=>pre.lv[r.id]!==undefined && r.veteranLevel>pre.lv[r.id]).length,
+      g:G.gold, dk:pre.dark!==undefined ? pre.dark : Math.round((G.darknessMeter||0)*10)/10, st:darknessTier(), ro:G.roster.length, mv:G.maxVeteransEverAchieved||0,
+      ts:G.templeChainStep||0, as:G.arenaChainStep||0});
+    G.runLogPending = null;
+  }
   if(G.activeMission.isCapstone && win){
     G.gold += G.activeMission.reward.gold;
     G.hasWon = true;
@@ -7790,6 +7907,10 @@ function cancelExpedition(){
 
 /* ---------------- RENDER ---------------- */
 function render(){
+  if(G && G.runLog && !G.runLog.ended){ // v2.4.2: close the run log at the end screens
+    if(G.screen==='victory') runLogEnd('victory');
+    else if(G.screen==='gameover') runLogEnd((G.gameOver && G.gameOver.reason) || 'gameover');
+  }
   saveGame(); // v2.3.0 -- only writes on camp/deploy/result/victory; see SAVED GAMES
   document.getElementById('screenLanding').style.display = G.screen==='landing' ? 'block':'none';
   document.getElementById('screenPrimer').style.display = G.screen==='primer' ? 'block':'none';
