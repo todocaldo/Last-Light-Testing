@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="art/appicon/web/favicon_32.png">
 <link rel="apple-touch-icon" href="art/appicon/web/icon_180.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Last Light v2.4.2</title>
+<title>Last Light v2.4.3</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -29,6 +29,12 @@
   v2.1.16 changelog entry, with the full v2.1.15 entry this build carries
   forward verbatim underneath it.
   ===========================================================================
+
+  LAST LIGHT -- v2.4.3
+  Sound: audio.js (new) plays named moments (sfx('cue_id')), battle
+  actions and screen-based music, all with synthesised placeholders until
+  recordings arrive. Settings > Sound: on/muted plus Master, Music, Effects
+  and Interface volume. No gameplay changes.
 
   LAST LIGHT -- v2.4.2
   Run log for playtest feedback: a compact record of each mission and a
@@ -2819,6 +2825,11 @@
   .setopt{flex:1 1 0;min-width:88px;padding-left:6px;padding-right:6px;white-space:nowrap}
   .setopt.on{background:#2a2010;border-color:var(--ember);color:var(--ember)}
   .setline{margin:0 0 8px}
+  /* v2.4.3 volume sliders */
+  .volrow{display:flex;align-items:center;gap:10px;margin:6px 0}
+  .volrow .vollabel{width:84px;flex:none}
+  .volrow input[type=range]{flex:1;accent-color:var(--ember);min-height:32px}
+  .volrow .volval{width:44px;text-align:right;color:var(--ash);flex:none}
   .titlescreen .t-link{background:none;border:none;color:var(--ash);font-family:'Alegreya Sans',sans-serif;font-size:14px;text-decoration:underline;min-height:32px;padding:4px 8px}
   #settingsBtn{padding-left:10px;padding-right:10px}
   /* v2.3.7 mixed board */
@@ -2859,7 +2870,7 @@
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span class="hdr-ver" style="color:var(--ash);font-size:0.55em;letter-spacing:1px">v2.4.2</span></h1>
+      <h1>✦ LAST LIGHT <span class="hdr-ver" style="color:var(--ash);font-size:0.55em;letter-spacing:1px">v2.4.3</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
@@ -2897,6 +2908,9 @@ function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
 // its own handler in the browser; in the testing harness it stays a no-op, so combat
 // results can't change. Deaths need no call: the renderer notices alive -> fallen.
 function fx(type, data){}
+// v2.4.3: named sound moments. audio.js installs window.LL_SOUND; without it (the testing
+// harness, or audio.js missing) this does nothing. Cue ids match the audio cue sheet.
+function sfx(cue, opts){ try{ if(typeof window!=='undefined' && window.LL_SOUND) window.LL_SOUND.play(cue, opts); }catch(e){} }
 // Art wiring Phase 3 (v2.2.2): pixel icons. ic(key, fallback, size) returns the old
 // emoji/text unless sprites.js has installed LL_ICON_HTML, in which case it returns
 // that icon as an <img>. tic(kind, fallback) does the same for the Battle Key's
@@ -4176,7 +4190,7 @@ function closeHelp(){
    Player preferences, kept apart from the saved campaign (they survive New Campaign).
    Stored through the platform store hook under 'settings'. The grid size lives in
    sprites.js ('gridMode') since the renderer owns it; this screen just calls it. */
-const SETTINGS_DEFAULTS = {speed:'normal', motion:'auto'};
+const SETTINGS_DEFAULTS = {speed:'normal', motion:'auto', volMaster:80, volMusic:60, volSfx:80, volUi:60, mute:false}; // v2.4.3: sound
 let settingsCache = null;
 function getSetting(key){
   if(!settingsCache){
@@ -4194,9 +4208,26 @@ function setSetting(key, value){
   render();
 }
 // Battle speed: how long enemy turns wait between moves (the harness sets its own 0).
-function applySettings(){ ENEMY_ANIM_DELAY_MS = getSetting('speed')==='fast' ? 75 : 150; }
+function applySettings(){
+  ENEMY_ANIM_DELAY_MS = getSetting('speed')==='fast' ? 75 : 150;
+  try{ if(typeof window!=='undefined' && window.LL_SOUND) window.LL_SOUND.applyVolumes(); }catch(e){} // v2.4.3
+}
+// v2.4.3: a slider moves without re-rendering the screen (which would drop the drag);
+// the value is stored and the sound levels follow at once.
+function setSettingQuiet(key, value){
+  getSetting(key);
+  settingsCache[key] = value;
+  const st = (typeof saveStore==='function') ? saveStore() : null;
+  if(st) st.set('settings', settingsCache);
+  applySettings();
+}
+function volumeRow(key, label){
+  const v = getSetting(key);
+  return `<label class="volrow"><span class="vollabel">${label}</span><input type="range" min="0" max="100" step="5" value="${v}" aria-label="${label} volume" oninput="setSettingQuiet('${key}', Number(this.value)); this.nextElementSibling.textContent=this.value+'%'" onchange="sfx('${key==='volMusic'?'ui_confirm':key==='volUi'?'ui_tap':'hit'}')"><span class="volval">${v}%</span></label>`;
+}
 if(typeof window!=='undefined' && window.addEventListener) window.addEventListener('DOMContentLoaded', applySettings);
 function openSettings(){
+  sfx('ui_confirm'); // v2.4.3
   if(!G) return;
   if(G.screen!=='settings') G.settingsReturn = G.screen;
   G.confirmDeleteSave = false;
@@ -4206,6 +4237,7 @@ function openSettings(){
   if(typeof window!=='undefined' && window.scrollTo) window.scrollTo({top:0});
 }
 function closeSettings(){
+  sfx('ui_back'); // v2.4.3
   G.screen = G.settingsReturn || 'landing';
   G.confirmDeleteSave = false;
   render();
@@ -4238,6 +4270,16 @@ function renderSettings(){
         ${settingChoice('C · Smooth', grid==='C', "LLSprites.setMode('C');render()")}
       </div>
       <small class="hint">A keeps pixels perfectly sharp but leaves the grid smaller. B fills the screen width (recommended). C fills it with slightly softened pixels. Phones only; desktop is always sharp.</small>` : ''}
+      <h3>Sound</h3>
+      <div class="setrow">
+        ${settingChoice('On', !getSetting('mute'), "setSetting('mute',false)")}
+        ${settingChoice('Muted', !!getSetting('mute'), "setSetting('mute',true)")}
+      </div>
+      ${volumeRow('volMaster','Master')}
+      ${volumeRow('volMusic','Music')}
+      ${volumeRow('volSfx','Effects')}
+      ${volumeRow('volUi','Interface')}
+      <small class="hint">The sounds are placeholders for now. Sound starts after your first tap; phones on silent mode may stay quiet.</small>
       <h3>Battle speed</h3>
       <div class="setrow">
         ${settingChoice('Normal', speed==='normal', "setSetting('speed','normal')")}
@@ -4394,6 +4436,7 @@ function restRecruit(r, restedNames, recoveredNames){
 }
 function advanceDayAction(){
   runLogPush({t:'wait', d:G.day, inj:G.roster.filter(r=>r.injuryBenchRemaining>0).length}); // v2.4.2
+  sfx('wait_day'); // v2.4.3
   chargeUpkeep(1);
   if(G.gameOver){ render(); return; }
   // v2.3.5: waiting now actually rests the company, as its button always said ("lets
@@ -4512,9 +4555,11 @@ function processTithe(){
     checkDarknessTierPromotion();
     addLog(`Paid the city's tithe of ${amount} gold to keep the Beacon fueled.`,'info');
     runLogPush({t:'tithe', d:G.day, paid:1, amt:amount, st:darknessTier()}); // v2.4.2
+    sfx('tithe_paid', {delay:0.5}); // v2.4.3
   } else {
     addLog(`The company could not meet the city's tithe of ${amount} gold. The Darkness does not wait for empty coffers.`,'bad');
     runLogPush({t:'tithe', d:G.day, paid:0, amt:amount, gold:G.gold}); // v2.4.2
+    sfx('tithe_missed', {delay:0.5}); // v2.4.3
   }
   G.titheDue = 3;
 }
@@ -4531,6 +4576,7 @@ function processTithe(){
 // wealthy player could out-pace darkness accrual indefinitely, which is exactly the
 // permanent-steady-state outcome DARKNESS_PER_TITHE was tuned to prevent.
 function payTitheEarly(){
+  if(G.titheDue<3 && G.gold>=titheAmount()) sfx('tithe_paid'); // v2.4.3
   if(G.titheDue>=3) return;
   const amount = titheAmount();
   if(G.gold<amount) return;
@@ -4628,6 +4674,7 @@ function hireRecruit(idx){
   G.candidates[idx]=genRecruit(candidateBonus());
   addLog(`Hired ${c.name} the ${c.bg.name} for ${cost} gold.`,'good');
   runLogPush({t:'hire', d:G.day, wpn:c.weaponKey, cost, heal:c.canHeal?1:0, cast:c.canCast?1:0}); // v2.4.2
+  sfx('hire'); // v2.4.3
   render();
 }
 function refreshCandidatesCost(){ return 10 + darknessTier()*5; } // 10/15/20/25 across tiers 0-3
@@ -4922,6 +4969,7 @@ function buildEliteUnit(tier, partyTier, isCapstone, uncapStatTier){
 // Shared by Stalk (spawns instantly on discovery) and The Endless Rite (spawns only after
 // a round-long hold at the found point). Same placement search and unit construction either way.
 function spawnEliteNear(x, y, tier, partyTier, uncapStatTier){
+  sfx('boss_appears'); // v2.4.3
   const stats = buildEliteUnit(tier, partyTier, false, uncapStatTier);
   let ex, ey, tries=0, found=false;
   while(tries<40 && !found){
@@ -4953,6 +5001,7 @@ function spawnEliteNear(x, y, tier, partyTier, uncapStatTier){
 // boss, not the true endgame capstone, even though it's colloquially "Temple's
 // capstone."
 function spawnRiteBoss(x, y){
+  sfx('boss_appears'); // v2.4.3
   const squadRecruits = G.squadSelect.map(id=>G.roster.find(r=>r.id===id)).filter(Boolean);
   // Cap the tier fed into buildBossHuntElite at 4 (v2.1.2) -- TARGET_HITS was only
   // ever tested/tuned across Boss Hunt's own tier range (max 18 hits at T4);
@@ -4989,6 +5038,7 @@ function spawnRiteBoss(x, y){
 // Elysium, region removed entirely in scope-reduction Stage 3. spawnEliteNear/
 // buildEliteUnit above remain, still used by Arena's elite-wave spawn in spawnWave().)
 function startDeployment(mission){
+  sfx('embark'); // v2.4.3
   const cfg = MISSION_SETTINGS[mission.setting];
   const obstacles=new Set(), highGround=new Set(), difficultTerrain=new Set();
   const obstacleGlyphs = new Map(), losBlockers = new Set();
@@ -5268,6 +5318,8 @@ function deployCellClick(x,y){
 function beginBattle(){
   const d=G.deploy;
   if(Object.keys(d.placed).length < d.squadIds.length) return;
+  sfx('battle_start'); // v2.4.3
+  if(G.activeMission && G.activeMission.darkDepth) sfx('darkened', {delay:0.6});
   const squadUnits = d.squadIds.map(id=>{
     const u=G.roster.find(r=>r.id===id);
     u.x=d.placed[id].x; u.y=d.placed[id].y; u.alive=true;
@@ -5496,6 +5548,7 @@ function checkCleanseHold(){
         o.claimed = true;
         anyChanged = true;
         addBattleLog('A ward-circle flares back to life, and holds.','good');
+        sfx('objective');
       }
     } else if(o.holdRounds>0){
       addBattleLog('The ward dims again — the hold was broken before it could catch.','bad');
@@ -5534,6 +5587,7 @@ function checkArenaIgnite(){
     if(G.battle.arenaHoldRounds>=1){
       obj.claimed = true;
       G.battle.arenaIgnited = true;
+      sfx('ignite');
       addBattleLog('The arena floor blazes to life -- the crowd roars as the bout truly begins!','bad');
     }
   } else {
@@ -5552,6 +5606,7 @@ function checkPurgeHold(){
     if(G.battle.purgeHoldRounds>=2 && !G.battle.purgeSiteCleansed){
       obj.claimed=true;
       G.battle.purgeSiteCleansed=true;
+      sfx('objective');
       addBattleLog('The corruption\'s source is suppressed — no more will come. Clear what remains!','good');
       checkBattleEnd();
     }
@@ -5581,6 +5636,7 @@ function oppositeEdgePoint(){
 // reinforcement) -- every existing call site still calls spawnWave() with no args and
 // is completely unaffected.
 function spawnWave(overrideCount){
+  sfx('wave'); // v2.4.3
   const tier=G.activeMission.tier;
   const poolTier = tier===4 ? 3 : tier; // mirrors T3, see genMission()'s countTier comment
   const pool=enemyPool(poolTier, G.battle.avgPartyTier);
@@ -5723,6 +5779,7 @@ async function processTurns(){
     }
     G.battle.animating=false;
     G.battle.currentUnit=unit; G.battle.mode=null; G.battle.hasMoved=false; G.battle.hasAttacked=false;
+    sfx('turn_player');
     render();
     return;
   }
@@ -7031,6 +7088,7 @@ function attackUnit(attacker,defender){
   const dodgeChance = Math.min(0.30, rawInit * 0.02);
   if(Math.random() < dodgeChance){
     addBattleLog(`${defender.name} nimbly dodges ${attacker.name}'s attack!`, attacker.side==='player'?'bad':'good');
+    sfx('dodge', {delay:0.12});
     if(defender.side==='player') defender.dodges = (defender.dodges||0) + 1;
     return;
   }
@@ -7047,6 +7105,7 @@ function attackUnit(attacker,defender){
   }
   if(blockChance > 0 && Math.random() < blockChance){
     addBattleLog(`${defender.name} blocks ${attacker.name}'s strike completely!${onHighGround?' (high ground)':''}`, attacker.side==='player'?'bad':'good');
+    sfx('block', {delay:0.12});
     return;
   }
   // Mutation-driven attack bonuses, resolved before damage. Lurking only fires on this
@@ -7067,6 +7126,7 @@ function attackUnit(attacker,defender){
   if(defender.side==='player') defender.damageTaken = (defender.damageTaken||0) + dmg;
   if(attacker.side==='player') attacker.damageDealt = (attacker.damageDealt||0) + dmg;
   addBattleLog(`${attacker.name} strikes ${defender.name} for ${dmg}${onHighGround?' (high ground held)':''}.`, attacker.side==='player'?'good':'bad');
+  sfx(defender.side==='player' ? 'hit_player' : 'hit', {delay:0.12});
   if(defender.hp<=0){
     if(defender.side==='player' && G.battle.missionType==='exhibition'){
       // Exhibition matches (v2.1.3+) guarantee survival -- no injury-roll risk, no
@@ -7077,6 +7137,7 @@ function attackUnit(attacker,defender){
       defender.hp = 1;
     } else {
       const trulyDead = resolveEnemyDeath(defender);
+      if(!defender.alive) sfx(defender.side==='player' ? 'death_player' : 'death_enemy', {delay:0.25});
       if(trulyDead && attacker.side==='player'){
         attacker.totalKills = (attacker.totalKills||0) + 1;
         if(!G.battle.firstKillClaimed){ G.battle.firstKillClaimed = true; attacker.firstKillCount = (attacker.firstKillCount||0) + 1; }
@@ -7410,6 +7471,7 @@ function battleCellClick(x,y){
         const obj = G.battle.objectives.find(o=>!o.claimed && o.x===x && o.y===y);
         if(obj){
           obj.claimed=true;
+          sfx('objective');
           const claimedCount = G.battle.objectives.filter(o=>o.claimed).length;
           addBattleLog(`${u.name} secures a site. (${claimedCount}/${G.battle.objectives.length})`,'good');
           if(claimedCount===G.battle.objectives.length){
@@ -7606,6 +7668,7 @@ function checkNicknameUnlock(r){
   let roll = Math.random() * weights.reduce((a,b)=>a+b, 0), cat = qualified[qualified.length-1];
   for(let i=0;i<qualified.length;i++){ roll -= weights[i]; if(roll < 0){ cat = qualified[i]; break; } }
   r.nickname = {category:cat.key, suffix: choice(cat.suffixes)};
+  sfx('nickname', {delay:2.4}); // v2.4.3
   addLog(`${r.name} has earned a new name: "the ${r.nickname.suffix}."`,'good');
 }
 function applyInjury(r){
@@ -7646,6 +7709,7 @@ function endBattle(win){
       const a=survivors[i], b=survivors[j];
       a.missionsWith = a.missionsWith || {}; b.missionsWith = b.missionsWith || {};
       a.missionsWith[b.id] = (a.missionsWith[b.id]||0) + 1;
+      if(a.missionsWith[b.id]===BOND_MISSIONS_THRESHOLD) sfx('bond', {delay:1.2}); // v2.4.3: a bond forms
       b.missionsWith[a.id] = (b.missionsWith[a.id]||0) + 1;
     }
   }
@@ -7666,6 +7730,7 @@ function endBattle(win){
     return true;
   });
   if(injuredNames.length) addLog(`${injuredNames.join(', ')} narrowly survived, but will need time to recover.`,'bad');
+  if(fallen.length) sfx('recruit_fell', {delay:0.9}); else if(injuredNames.length) sfx('injured', {delay:0.9}); // v2.4.3
   const fallenIds=fallen.map(r=>r.id);
   // Bond reset on death (v2.0.43): a bond is a relationship between two specific living
   // recruits -- if one half of a pair falls, the survivor's progress toward that
@@ -7721,6 +7786,7 @@ function endBattle(win){
     r.trainingMissions++;
     if(r.veteranLevel < MAX_VETERAN_LEVEL && r.trainingMissions >= effectiveLevelThreshold(r.veteranLevel)){
       r.veteranLevel++;
+      sfx('level_up', {delay:1.6}); // v2.4.3
       const hpGain = rollLevelHp(r);
       r.maxhp += hpGain; r.hp = Math.min(r.maxhp, r.hp+hpGain);
       r.pendingChoice = true;
@@ -7758,6 +7824,7 @@ function endBattle(win){
       foundItems.push({recruitName:r.name, item});
     });
     if(foundItems.length) addLog(`${foundItems.map(f=>`${f.recruitName} found ${f.item.name}`).join('; ')}.`,'good');
+    if(foundItems.length) sfx('item_found', {delay:2.0}); // v2.4.3
   }
   G.expedition++;
   G.squadSelect=[];
@@ -7843,6 +7910,7 @@ function endBattle(win){
   checkNoSquadGameOver();
   if(G.gameOver){ render(); return; }
   G.result={win, fallen, survivors, foundItems, mission:G.activeMission};
+  sfx(win ? 'mission_won' : 'mission_lost', {delay:0.3}); // v2.4.3
   G.screen='result';
   render();
 }
@@ -9153,5 +9221,6 @@ window.addEventListener('DOMContentLoaded', startNewCampaign);
 <script src="platform.js"></script>
 <script src="art/manifest.js"></script>
 <script src="sprites.js"></script>
+<script src="audio.js"></script>
 </body>
 </html>
