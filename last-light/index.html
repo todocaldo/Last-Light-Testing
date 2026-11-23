@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="art/appicon/web/favicon_32.png">
 <link rel="apple-touch-icon" href="art/appicon/web/icon_180.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Last Light v2.4.5</title>
+<title>Last Light v2.4.6</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -29,6 +29,10 @@
   v2.1.16 changelog entry, with the full v2.1.15 entry this build carries
   forward verbatim underneath it.
   ===========================================================================
+
+  LAST LIGHT -- v2.4.6
+  Settings > About: audio credit line (original, AI-assisted, made with
+  16-bit Studio) and copyright notice. Text only.
 
   LAST LIGHT -- v2.4.5
   Music: all six moods now play recorded tracks (last-light/audio/music,
@@ -2880,7 +2884,7 @@
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span class="hdr-ver" style="color:var(--ash);font-size:0.55em;letter-spacing:1px">v2.4.5</span></h1>
+      <h1>✦ LAST LIGHT <span class="hdr-ver" style="color:var(--ash);font-size:0.55em;letter-spacing:1px">v2.4.6</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
@@ -4320,6 +4324,8 @@ function renderSettings(){
       <h3>About</h3>
       <p class="setline">Last Light${ver?' '+ver:''}</p>
       <small class="hint">Your campaign and settings are saved in this browser on this device; nothing is sent anywhere. Fonts: IM Fell English and Alegreya Sans, under the SIL Open Font License.</small>
+      <small class="hint" style="display:block;margin-top:8px">Music and sound effects: original, made for Last Light with 16-bit Studio (AI-assisted).</small>
+      <small class="hint" style="display:block;margin-top:8px">&copy; 2026 Randall. All rights reserved.</small>
     </div>`;
 }
 // Hall of Fame (v2.0.37): combines active roster, retirees (G.retirees, already
