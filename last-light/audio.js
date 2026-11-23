@@ -1,5 +1,5 @@
 /* ============================================================================
-   LAST LIGHT — sound player (v2.4.3)
+   LAST LIGHT — sound player (v2.4.3; recordings v2.4.4–v2.4.5)
    ============================================================================
    Plays every sound in the game. The game itself only names moments: it calls
    sfx('cue_id', data) (a no-op in the game core, so the testing harness never
@@ -28,8 +28,65 @@
 
   // ---------------------------------------------------------------- real files (fill in as recordings arrive)
   // cue id -> path without extension, e.g.  ui_tap: 'audio/sfx/ui_tap'
-  const FILES = {};
-  const MUSIC_FILES = {};   // track id -> path without extension (looping)
+  // v2.4.4: the 41 effects from 16-bit Studio v0.7.0 (original, synthesised in code).
+  const FILES = {
+    ui_tap: 'audio/sfx/ui_tap',
+    ui_confirm: 'audio/sfx/ui_confirm',
+    ui_back: 'audio/sfx/ui_back',
+    ui_denied: 'audio/sfx/ui_denied',
+    embark: 'audio/sfx/embark',
+    hire: 'audio/sfx/hire',
+    wait_day: 'audio/sfx/wait_day',
+    gold: 'audio/sfx/gold',
+    tithe_paid: 'audio/sfx/tithe_paid',
+    tithe_missed: 'audio/sfx/tithe_missed',
+    level_up: 'audio/sfx/level_up',
+    nickname: 'audio/sfx/nickname',
+    bond: 'audio/sfx/bond',
+    item_found: 'audio/sfx/item_found',
+    recruit_fell: 'audio/sfx/recruit_fell',
+    injured: 'audio/sfx/injured',
+    atk_spear: 'audio/sfx/atk_spear',
+    atk_longsword: 'audio/sfx/atk_longsword',
+    atk_longbow: 'audio/sfx/atk_longbow',
+    atk_quarterstaff: 'audio/sfx/atk_quarterstaff',
+    atk_dagger: 'audio/sfx/atk_dagger',
+    atk_enemy: 'audio/sfx/atk_enemy',
+    hit: 'audio/sfx/hit',
+    hit_player: 'audio/sfx/hit_player',
+    dodge: 'audio/sfx/dodge',
+    block: 'audio/sfx/block',
+    death_enemy: 'audio/sfx/death_enemy',
+    death_player: 'audio/sfx/death_player',
+    heal: 'audio/sfx/heal',
+    cast: 'audio/sfx/cast',
+    ability: 'audio/sfx/ability',
+    skill: 'audio/sfx/skill',
+    battle_start: 'audio/sfx/battle_start',
+    turn_player: 'audio/sfx/turn_player',
+    wave: 'audio/sfx/wave',
+    objective: 'audio/sfx/objective',
+    ignite: 'audio/sfx/ignite',
+    boss_appears: 'audio/sfx/boss_appears',
+    mission_won: 'audio/sfx/mission_won',
+    mission_lost: 'audio/sfx/mission_lost',
+    darkened: 'audio/sfx/darkened',
+  };
+  // v2.4.5: the six tracks from 16-bit Studio v0.7.0. len = the loop's exact length in
+  // samples at 44.1 kHz: AAC (.m4a) pads the end of a file, so a loop is cut at len to stay
+  // seamless. once = play through one time, then silence (victory and game over).
+  const MUSIC_FILES = {
+    title:   'audio/music/title',
+    camp:    'audio/music/camp',
+    battle:  'audio/music/battle',
+    boss:    'audio/music/boss',
+    victory: 'audio/music/victory',
+    defeat:  'audio/music/defeat',
+  };
+  const MUSIC_INFO = {
+    title:  {len:3892966}, camp:{len:4364536}, battle:{len:2919724}, boss:{len:2116800},
+    victory:{once:true}, defeat:{once:true}
+  };
 
   // ---------------------------------------------------------------- context and buses
   let ctx = null, master = null, bus = {}, ready = false, meter = null;
@@ -75,7 +132,16 @@
         .then(b=>ctx.decodeAudioData(b)).then(buf=>{ into[id] = buf; })
         .catch(()=>{ into[id] = null; }); // placeholder stays
     });
-    load(FILES, buffers); load(MUSIC_FILES, musicBuffers);
+    load(FILES, buffers);
+    // music: if a placeholder is already playing for this mood, swap to the recording
+    Object.entries(MUSIC_FILES).forEach(([id, path])=>{
+      fetch(path + e).then(r=>{ if(!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+        .then(b=>ctx.decodeAudioData(b)).then(buf=>{
+          musicBuffers[id] = buf;
+          if(trackId===id && track && !track.recorded){ trackId = null; startTrack(id); }
+        })
+        .catch(()=>{ musicBuffers[id] = null; });
+    });
   }
 
   // ---------------------------------------------------------------- placeholder synthesis
@@ -210,9 +276,16 @@
     const stop = ()=>{ nodes.forEach(n=>{ try{ n.stop(); }catch(e){} }); try{ g.disconnect(); }catch(e){} if(track && track.gain===g) track = null; };
     const recorded = musicBuffers[id];
     if(recorded){
-      const s = ctx.createBufferSource(); s.buffer = recorded; s.loop = true; s.connect(g); s.start(t); nodes.push(s);
+      const s = ctx.createBufferSource(); s.buffer = recorded;
+      const info = MUSIC_INFO[id] || {};
+      if(!info.once){
+        s.loop = true;
+        const len = info.len ? info.len/44100 : 0;
+        if(len && recorded.duration > len + 0.0005){ s.loopStart = 0; s.loopEnd = len; }
+      }
+      s.connect(g); s.start(t); nodes.push(s);
       g.gain.setTargetAtTime(1, t, 0.35);
-      track = {gain:g, stop}; return;
+      track = {gain:g, stop, recorded:true}; return;
     }
     const M = MOODS[id] || MOODS.camp;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = M.lp; lp.Q.value = 0.7; lp.connect(g);
@@ -283,7 +356,7 @@
   };
   // sfx(): the game's named moments.
   function level(){ if(!meter) return 0; const a = new Float32Array(meter.fftSize); meter.getFloatTimeDomainData(a); let s=0; for(const x of a) s+=x*x; return Math.sqrt(s/a.length); }
-  window.LL_SOUND = { play, applyVolumes, get ready(){ return ready; }, cues: Object.keys(CUES), _mood: ()=>trackId, _level: level };
+  window.LL_SOUND = { play, applyVolumes, get ready(){ return ready; }, cues: Object.keys(CUES), _mood: ()=>trackId, _level: level, _track: ()=>track ? {id:trackId, recorded:!!track.recorded} : null };
 
   // Every button gets a soft tap, unless a named cue just played for the same press.
   document.addEventListener('click', ev=>{

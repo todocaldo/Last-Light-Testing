@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="art/appicon/web/favicon_32.png">
 <link rel="apple-touch-icon" href="art/appicon/web/icon_180.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Last Light v2.4.3</title>
+<title>Last Light v2.4.5</title>
 <!--
   ===========================================================================
   LAST LIGHT LEAN v1
@@ -29,6 +29,16 @@
   v2.1.16 changelog entry, with the full v2.1.15 entry this build carries
   forward verbatim underneath it.
   ===========================================================================
+
+  LAST LIGHT -- v2.4.5
+  Music: all six moods now play recorded tracks (last-light/audio/music,
+  .ogg + .m4a, made with 16-bit Studio v0.7.0). Title, camp, battle and boss
+  loop seamlessly; victory and game over play once. No gameplay changes.
+
+  LAST LIGHT -- v2.4.4
+  Sound effects: all 41 cues now play recorded effects (last-light/audio/sfx,
+  .ogg + .m4a, made with 16-bit Studio v0.7.0). Music is still the
+  synthesised placeholder. No gameplay changes.
 
   LAST LIGHT -- v2.4.3
   Sound: audio.js (new) plays named moments (sfx('cue_id')), battle
@@ -2870,7 +2880,7 @@
 <div class="wrap">
   <header id="mainHeader">
     <div>
-      <h1>✦ LAST LIGHT <span class="hdr-ver" style="color:var(--ash);font-size:0.55em;letter-spacing:1px">v2.4.3</span></h1>
+      <h1>✦ LAST LIGHT <span class="hdr-ver" style="color:var(--ash);font-size:0.55em;letter-spacing:1px">v2.4.5</span></h1>
       <div class="sub">Expedition <span id="expLabel">1</span> · The Darkness does not sleep.</div>
     </div>
     <div class="chips" id="statChips"></div>
@@ -4279,7 +4289,7 @@ function renderSettings(){
       ${volumeRow('volMusic','Music')}
       ${volumeRow('volSfx','Effects')}
       ${volumeRow('volUi','Interface')}
-      <small class="hint">The sounds are placeholders for now. Sound starts after your first tap; phones on silent mode may stay quiet.</small>
+      <small class="hint">Sound starts after your first tap; phones on silent mode may stay quiet.</small>
       <h3>Battle speed</h3>
       <div class="setrow">
         ${settingChoice('Normal', speed==='normal', "setSetting('speed','normal')")}
